@@ -418,7 +418,10 @@ export class VibeTrackGame {
       boostRemainingMs: telemetry.boostRemainingMs,
       inputSteer: this.currentInputState.steer,
       steeringAngle: this.vehicle.getSteeringAngle(),
-      autoRightCountdownMs: this.autoRightCountdownMs
+      autoRightCountdownMs: this.autoRightCountdownMs,
+      slipAngleDeg: this.vehicle.getSlipAngleDeg(),
+      yawRate: this.vehicle.getYawRate(),
+      yawAssistTorque: this.vehicle.getYawAssistTorque()
     };
   }
 }
