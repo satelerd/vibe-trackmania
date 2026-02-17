@@ -34,13 +34,20 @@ const DEFAULT_TUNING: VehicleTuning = {
   maxSpeedKmh: 315,
   engineForce: 4200,
   brakeForce: 95,
-  steerRate: 0.53,
+  steerRateLowSpeed: 0.6,
+  steerRateHighSpeed: 0.31,
+  steerBlendKmh: 220,
   suspensionRest: 0.35,
   suspensionSpring: 42,
   suspensionDamper: 4.2,
   tireGrip: 3.2,
   driftGripFactorRear: 0.54,
-  airControlTorque: 13
+  airControlTorque: 13,
+  airControlFactor: 0.6,
+  yawStabilityGain: 2.15,
+  yawStabilityMaxTorque: 8.5,
+  slipAssistGain: 5.8,
+  slipAssistMaxTorque: 5.4
 };
 
 function parseBestSplits(rawValue: string | null): number[] | null {
