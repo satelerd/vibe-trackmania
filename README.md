@@ -7,7 +7,7 @@ VibeTrack es un Trackmania-like web-first construido con Vite + TypeScript + Thr
 - Modo: Time Attack solo
 - Inputs: teclado + gamepad
 - Cámara: third-person chase
-- Features activas: checkpoints secuenciales, boost pads, respawn, restart, countdown, HUD, audio sintético, best lap persistente en `localStorage`
+- Features activas: checkpoints secuenciales, boost pads, respawn, restart, countdown, HUD, audio sintético, best lap + best splits persistentes en `localStorage`, auto-right si el auto queda invertido
 
 ## Stack
 
@@ -39,7 +39,7 @@ Nota: con `Node v20.0.0` Vite muestra advertencia de versión recomendada (`20.1
 ## Controles
 
 - `W` / `ArrowUp` o gatillo derecho: acelerar
-- `S` / `ArrowDown` o gatillo izquierdo: frenar
+- `S` / `ArrowDown` o gatillo izquierdo: frenar / retroceder (marcha atrás cuando ya vas lento)
 - `A` / `D` o stick izquierdo: girar
 - `Space` o botón `B`: handbrake / drift assist
 - `R` o botón `A`: respawn al último checkpoint
@@ -56,7 +56,7 @@ Nota: con `Node v20.0.0` Vite muestra advertencia de versión recomendada (`20.1
 - `src/ui`: HUD
 - `src/audio`: audio procedural
 - `src/test`: tests unitarios e integración
-- `e2e`: tests E2E automatizados con Playwright (aceleración, giro, respawn)
+- `e2e`: tests E2E automatizados con Playwright (aceleración, giro izquierda/derecha, respawn)
 
 ## Flujo de trabajo GitHub
 
@@ -64,3 +64,5 @@ Nota: con `Node v20.0.0` Vite muestra advertencia de versión recomendada (`20.1
 - Ramas obligatorias con prefijo `codex/`
 - PR diaria con checklist de self-review
 - Merge squash cuando CI está en verde
+
+Plan de desarrollo activo: `docs/development-plan.md`

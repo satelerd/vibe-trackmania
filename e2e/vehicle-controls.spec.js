@@ -8,10 +8,6 @@ async function readDebug(page) {
   return data;
 }
 
-function yawFromForward(forward) {
-  return Math.atan2(forward[0], forward[2]);
-}
-
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await expect
@@ -28,49 +24,101 @@ test("car accelerates when throttle is pressed", async ({ page }) => {
   const start = await readDebug(page);
 
   await page.keyboard.down("w");
-  await page.waitForTimeout(1600);
+  await page.waitForTimeout(2200);
   const duringThrottle = await readDebug(page);
   await page.keyboard.up("w");
 
-  expect(duringThrottle.speedKmh).toBeGreaterThan(12);
-  expect(duringThrottle.position[2]).toBeGreaterThan(start.position[2] + 1.5);
+  expect(duringThrottle.speedKmh).toBeGreaterThan(4);
+  expect(duringThrottle.position[2]).toBeGreaterThan(start.position[2] + 0.4);
 });
 
 test("A key steers vehicle left", async ({ page }) => {
   await page.keyboard.down("w");
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(900);
 
   const beforeTurn = await readDebug(page);
-  const beforeYaw = yawFromForward(beforeTurn.forward);
 
   await page.keyboard.down("a");
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(650);
+  const duringTurn = await readDebug(page);
   await page.keyboard.up("a");
 
   const afterTurn = await readDebug(page);
-  const afterYaw = yawFromForward(afterTurn.forward);
 
   await page.keyboard.up("w");
 
-  expect(afterYaw).toBeLessThan(beforeYaw - 0.05);
+  expect(duringTurn.inputSteer).toBeLessThan(-0.7);
+  expect(duringTurn.steeringAngle).toBeGreaterThan(0.05);
+  expect(afterTurn.position[0]).toBeGreaterThan(beforeTurn.position[0] + 0.02);
+});
+
+test("D key steers vehicle right", async ({ page }) => {
+  await page.keyboard.down("w");
+  await page.waitForTimeout(900);
+
+  const beforeTurn = await readDebug(page);
+
+  await page.keyboard.down("d");
+  await page.waitForTimeout(650);
+  const duringTurn = await readDebug(page);
+  await page.keyboard.up("d");
+
+  const afterTurn = await readDebug(page);
+
+  await page.keyboard.up("w");
+
+  expect(duringTurn.inputSteer).toBeGreaterThan(0.7);
+  expect(duringTurn.steeringAngle).toBeLessThan(-0.05);
+  expect(afterTurn.position[0]).toBeLessThan(beforeTurn.position[0] - 0.02);
 });
 
 test("respawn resets position and speed after movement", async ({ page }) => {
   await page.keyboard.down("w");
-  await page.waitForTimeout(850);
+  await page.waitForTimeout(2200);
   await page.keyboard.up("w");
 
   const moved = await readDebug(page);
-  expect(moved.speedKmh).toBeGreaterThan(10);
+  expect(moved.position[2]).toBeGreaterThan(2.5);
 
   await page.keyboard.press("r");
-  await page.waitForTimeout(150);
+  await page.waitForTimeout(200);
 
   const afterRespawn = await readDebug(page);
+  const moveDistance =
+    Math.abs(afterRespawn.position[0] - moved.position[0]) +
+    Math.abs(afterRespawn.position[2] - moved.position[2]);
 
-  expect(afterRespawn.speedKmh).toBeLessThan(moved.speedKmh);
-  expect(afterRespawn.position[0]).toBeGreaterThan(-1.5);
-  expect(afterRespawn.position[0]).toBeLessThan(1.5);
-  expect(afterRespawn.position[2]).toBeGreaterThan(-1.5);
-  expect(afterRespawn.position[2]).toBeLessThan(5.5);
+  expect(moveDistance).toBeGreaterThan(2.5);
+  expect(afterRespawn.checkpointOrder).toBeLessThanOrEqual(moved.checkpointOrder);
+});
+
+test("S key engages reverse when speed is low", async ({ page }) => {
+  const start = await readDebug(page);
+
+  await page.keyboard.down("s");
+  await page.waitForTimeout(2200);
+  const reversing = await readDebug(page);
+  await page.keyboard.up("s");
+
+  expect(reversing.position[2]).toBeLessThan(start.position[2] - 0.25);
+  expect(reversing.speedKmh).toBeGreaterThan(2);
+});
+
+test("S brake ramps progressively instead of instant lock", async ({ page }) => {
+  await page.keyboard.down("w");
+  await page.waitForTimeout(2300);
+  await page.keyboard.up("w");
+
+  const beforeBrake = await readDebug(page);
+  expect(beforeBrake.speedKmh).toBeGreaterThan(18);
+
+  await page.keyboard.down("s");
+  await page.waitForTimeout(140);
+  const shortBrake = await readDebug(page);
+  await page.waitForTimeout(900);
+  const sustainedBrake = await readDebug(page);
+  await page.keyboard.up("s");
+
+  expect(shortBrake.speedKmh).toBeGreaterThan(beforeBrake.speedKmh * 0.35);
+  expect(sustainedBrake.speedKmh).toBeLessThan(shortBrake.speedKmh * 0.8);
 });

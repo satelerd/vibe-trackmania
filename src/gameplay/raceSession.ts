@@ -33,12 +33,30 @@ export class RaceSession {
   private bestMs: number | null;
   private currentCheckpointOrder = 0;
   private countdownRemainingMs = 3000;
+  private lastSplitMs: number | null = null;
+  private lastSplitDeltaMs: number | null = null;
+  private readonly bestSplitsMs: Array<number | null>;
+  private currentSplitsMs: Array<number | null>;
 
   constructor(
     private readonly totalCheckpoints: number,
-    initialBestMs: number | null = null
+    initialBestMs: number | null = null,
+    initialBestSplitsMs: number[] | null = null
   ) {
     this.bestMs = initialBestMs;
+    this.bestSplitsMs = new Array(this.totalCheckpoints).fill(null);
+    this.currentSplitsMs = new Array(this.totalCheckpoints).fill(null);
+
+    if (initialBestSplitsMs) {
+      for (
+        let checkpointIndex = 0;
+        checkpointIndex < Math.min(initialBestSplitsMs.length, this.totalCheckpoints);
+        checkpointIndex += 1
+      ) {
+        const value = initialBestSplitsMs[checkpointIndex];
+        this.bestSplitsMs[checkpointIndex] = Number.isFinite(value) ? value : null;
+      }
+    }
   }
 
   getCountdownRemainingMs(): number {
@@ -84,11 +102,22 @@ export class RaceSession {
     }
 
     this.currentCheckpointOrder = result.nextOrder;
+    this.currentSplitsMs[order] = this.elapsedMs;
+    this.lastSplitMs = this.elapsedMs;
+
+    const bestSplitMs = this.bestSplitsMs[order];
+    this.lastSplitDeltaMs =
+      bestSplitMs === null ? null : this.elapsedMs - bestSplitMs;
 
     if (result.finished) {
       this.phase = "finished";
       if (this.bestMs === null || this.elapsedMs < this.bestMs) {
         this.bestMs = this.elapsedMs;
+        this.bestSplitsMs.splice(
+          0,
+          this.bestSplitsMs.length,
+          ...this.currentSplitsMs
+        );
       }
     }
 
@@ -100,6 +129,21 @@ export class RaceSession {
     this.elapsedMs = 0;
     this.currentCheckpointOrder = 0;
     this.countdownRemainingMs = 3000;
+    this.lastSplitMs = null;
+    this.lastSplitDeltaMs = null;
+    this.currentSplitsMs = new Array(this.totalCheckpoints).fill(null);
+  }
+
+  getBestSplits(): number[] | null {
+    const splits: number[] = [];
+    for (const value of this.bestSplitsMs) {
+      if (value === null) {
+        return null;
+      }
+      splits.push(value);
+    }
+
+    return splits;
   }
 
   getState(speedKmh: number): RaceState {
@@ -108,7 +152,9 @@ export class RaceSession {
       elapsedMs: this.elapsedMs,
       bestMs: this.bestMs,
       currentCheckpointOrder: this.currentCheckpointOrder,
-      speedKmh
+      speedKmh,
+      lastSplitMs: this.lastSplitMs,
+      lastSplitDeltaMs: this.lastSplitDeltaMs
     };
   }
 }

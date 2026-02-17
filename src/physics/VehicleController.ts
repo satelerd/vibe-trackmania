@@ -24,13 +24,16 @@ export class VehicleController {
 
   private boostRemainingMs = 0;
   private boostForce = 0;
+  private appliedBrakeForce = 0;
 
   private steeringAngle = 0;
   private speedMs = 0;
   private grounded = false;
 
   private readonly forwardVector = new THREE.Vector3(0, 0, 1);
+  private readonly upVector = new THREE.Vector3(0, 1, 0);
   private readonly workingQuaternion = new THREE.Quaternion();
+  private readonly workingUpVector = new THREE.Vector3();
   private readonly workingVector2 = new THREE.Vector2();
 
   constructor(
@@ -96,19 +99,36 @@ export class VehicleController {
 
   preStep(input: InputState, deltaSeconds: number): void {
     const steerSpeedFactor = THREE.MathUtils.clamp(1 - Math.abs(this.speedMs) / 90, 0.35, 1);
-    this.steeringAngle = input.steer * this.tuning.steerRate * steerSpeedFactor;
+    const steeringInput = -input.steer;
+    this.steeringAngle = steeringInput * this.tuning.steerRate * steerSpeedFactor;
 
-    const throttleForce = input.throttle * this.tuning.engineForce;
-    const brakeForce =
-      input.brake * this.tuning.brakeForce +
-      (input.handbrake ? this.tuning.brakeForce * 0.72 : 0);
+    const canUseReverseEngine =
+      input.brake > 0 &&
+      (Math.abs(this.speedMs) < 2.2 || this.speedMs < -0.4);
+    const reverseForce = canUseReverseEngine
+      ? input.brake * this.tuning.engineForce * 0.72
+      : 0;
+    const throttleForce = input.throttle * this.tuning.engineForce - reverseForce;
+    const serviceBrakeForce = canUseReverseEngine ? 0 : input.brake * this.tuning.brakeForce;
+    const handbrakeForce = input.handbrake ? this.tuning.brakeForce * 0.72 : 0;
+    const targetBrakeForce = serviceBrakeForce + handbrakeForce;
+    const brakeRiseRate = 3.4;
+    const brakeReleaseRate = 11;
+    const brakeRate =
+      targetBrakeForce > this.appliedBrakeForce ? brakeRiseRate : brakeReleaseRate;
+    const brakeRamp = 1 - Math.exp(-brakeRate * deltaSeconds);
+    this.appliedBrakeForce = THREE.MathUtils.lerp(
+      this.appliedBrakeForce,
+      targetBrakeForce,
+      brakeRamp
+    );
 
     const rearGrip = input.handbrake ? this.tuning.driftGripFactorRear : 1;
 
-    this.configureWheelControl(0, this.steeringAngle, throttleForce, brakeForce, 1);
-    this.configureWheelControl(1, this.steeringAngle, throttleForce, brakeForce, 1);
-    this.configureWheelControl(2, 0, throttleForce, brakeForce, rearGrip);
-    this.configureWheelControl(3, 0, throttleForce, brakeForce, rearGrip);
+    this.configureWheelControl(0, this.steeringAngle, throttleForce, this.appliedBrakeForce, 1);
+    this.configureWheelControl(1, this.steeringAngle, throttleForce, this.appliedBrakeForce, 1);
+    this.configureWheelControl(2, 0, throttleForce, this.appliedBrakeForce, rearGrip);
+    this.configureWheelControl(3, 0, throttleForce, this.appliedBrakeForce, rearGrip);
 
     this.applyBoostImpulse(deltaSeconds);
 
@@ -116,7 +136,7 @@ export class VehicleController {
       this.body.applyTorqueImpulse(
         {
           x: 0,
-          y: input.steer * this.tuning.airControlTorque * deltaSeconds,
+          y: steeringInput * this.tuning.airControlTorque * deltaSeconds,
           z: 0
         },
         true
@@ -201,6 +221,7 @@ export class VehicleController {
     this.speedMs = 0;
     this.boostRemainingMs = 0;
     this.boostForce = 0;
+    this.appliedBrakeForce = 0;
 
     this.syncVisuals(0);
   }
@@ -214,6 +235,20 @@ export class VehicleController {
     const rotation = this.body.rotation();
     this.workingQuaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
     return target.copy(this.forwardVector).applyQuaternion(this.workingQuaternion).normalize();
+  }
+
+  getUpVector(target: THREE.Vector3): THREE.Vector3 {
+    const rotation = this.body.rotation();
+    this.workingQuaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+    return target.copy(this.upVector).applyQuaternion(this.workingQuaternion).normalize();
+  }
+
+  getSteeringAngle(): number {
+    return this.steeringAngle;
+  }
+
+  isUpsideDown(): boolean {
+    return this.getUpVector(this.workingUpVector).y < 0.15;
   }
 
   getTelemetry(): VehicleTelemetry {
