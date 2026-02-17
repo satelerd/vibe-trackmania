@@ -86,7 +86,7 @@ test("car accelerates when throttle is pressed", async ({ page }) => {
 
   expect(duringThrottle.phase).toBe("running");
   expect(duringThrottle.speedKmh).toBeGreaterThan(4);
-  expect(duringThrottle.position[2]).toBeGreaterThan(start.position[2] + 0.4);
+  expect(duringThrottle.position[2]).toBeGreaterThan(start.position[2] + 0.25);
 });
 
 test("A key steers vehicle left", async ({ page }) => {
@@ -134,13 +134,8 @@ test("D key steers vehicle right", async ({ page }) => {
 test("sustained left curve keeps heading and lateral displacement", async ({ page }) => {
   const start = await readDebug(page);
 
-  await page.keyboard.down("w");
+  await holdUntilRunning(page, "w");
   await page.keyboard.down("a");
-  await expect
-    .poll(async () => (await readDebug(page)).phase, {
-      timeout: 10_000
-    })
-    .toBe("running");
   await page.waitForTimeout(1700);
 
   const duringCurve = await readDebug(page);

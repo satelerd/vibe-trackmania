@@ -4,6 +4,7 @@ module.exports = defineConfig({
   testDir: "./e2e",
   timeout: 60_000,
   fullyParallel: false,
+  workers: process.env.CI ? 1 : undefined,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: {
