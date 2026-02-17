@@ -198,7 +198,11 @@ test("split delta updates after checkpoint when best split exists", async ({ pag
   await seedBestSplitsAndReset(page);
 
   await holdUntilRunning(page, "w");
-  await page.waitForTimeout(4200);
+  await expect
+    .poll(async () => (await readDebug(page)).checkpointOrder, {
+      timeout: 12_000
+    })
+    .toBeGreaterThanOrEqual(1);
   await page.keyboard.up("w");
 
   await expect(page.locator(".hud-split")).toContainText("Split Δ:");
