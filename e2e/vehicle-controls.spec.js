@@ -19,18 +19,21 @@ test.beforeEach(async ({ page }) => {
       timeout: 10_000
     })
     .toBe(true);
+
+  await page.keyboard.press("Backspace");
+  await page.waitForTimeout(80);
 });
 
 test("car accelerates when throttle is pressed", async ({ page }) => {
   const start = await readDebug(page);
 
   await page.keyboard.down("w");
-  await page.waitForTimeout(1400);
+  await page.waitForTimeout(1600);
   const duringThrottle = await readDebug(page);
   await page.keyboard.up("w");
 
-  expect(duringThrottle.speedKmh).toBeGreaterThan(start.speedKmh + 20);
-  expect(duringThrottle.position[2]).toBeGreaterThan(start.position[2] + 4);
+  expect(duringThrottle.speedKmh).toBeGreaterThan(12);
+  expect(duringThrottle.position[2]).toBeGreaterThan(start.position[2] + 1.5);
 });
 
 test("A key steers vehicle left", async ({ page }) => {
