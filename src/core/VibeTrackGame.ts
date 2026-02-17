@@ -12,10 +12,15 @@ import { loadPremiumTrack } from "../track/loadTrack";
 import { Hud } from "../ui/Hud";
 import {
   DebugSnapshot,
+  InputTrace,
+  InputTraceFrame,
   InputState,
   QualityPreset,
   RaceState,
   RuntimeOptions,
+  TraceReplayOptions,
+  TraceReplayResult,
+  TraceReplayState,
   VehicleTelemetry,
   VehicleTuning
 } from "../types";
@@ -25,6 +30,7 @@ const BEST_LAP_STORAGE_KEY = "vibetrack.bestLapMs";
 const BEST_SPLITS_STORAGE_KEY = "vibetrack.bestSplitsMs";
 const AUTO_RIGHT_TRIGGER_MS = 1200;
 const ACTION_FREEZE_MS = 30;
+const TRACE_FIXED_STEP_HZ = Math.round(1 / FIXED_STEP_SECONDS);
 
 declare global {
   interface Window {
@@ -32,6 +38,16 @@ declare global {
     __VIBETRACK_TEST_API__?: {
       respawnAtCheckpoint: (order: number, initialSpeedKmh?: number) => void;
       respawnAtSpawn: () => void;
+      startInputTraceRecording: (label?: string) => InputTrace;
+      stopInputTraceRecording: () => InputTrace;
+      playInputTrace: (trace: InputTrace, options?: TraceReplayOptions) => void;
+      getInputTraceReplayState: () => {
+        state: TraceReplayState;
+        cursor: number;
+        totalFrames: number;
+        label: string | null;
+      };
+      getLastInputTraceResult: () => TraceReplayResult | null;
     };
   }
 }
@@ -90,6 +106,69 @@ function resolveRuntimeOptions(search: string): RuntimeOptions {
   };
 }
 
+function cloneInputState(input: InputState): InputState {
+  return {
+    throttle: input.throttle,
+    brake: input.brake,
+    steer: input.steer,
+    handbrake: input.handbrake,
+    respawn: input.respawn,
+    restart: input.restart
+  };
+}
+
+function sanitizeInputState(input: InputState): InputState {
+  return {
+    throttle: THREE.MathUtils.clamp(input.throttle, 0, 1),
+    brake: THREE.MathUtils.clamp(input.brake, 0, 1),
+    steer: THREE.MathUtils.clamp(input.steer, -1, 1),
+    handbrake: Boolean(input.handbrake),
+    respawn: Boolean(input.respawn),
+    restart: Boolean(input.restart)
+  };
+}
+
+function cloneTrace(trace: InputTrace): InputTrace {
+  return {
+    version: 1,
+    label: trace.label,
+    trackId: trace.trackId,
+    fixedStepHz: trace.fixedStepHz,
+    frames: trace.frames.map((frame) => ({
+      tick: frame.tick,
+      input: cloneInputState(frame.input),
+      position: [...frame.position],
+      speedKmh: frame.speedKmh,
+      checkpointOrder: frame.checkpointOrder
+    }))
+  };
+}
+
+function normalizeTrace(trace: InputTrace): InputTrace {
+  const normalizedFrames: InputTraceFrame[] = trace.frames.map((frame, index) => ({
+    tick: Number.isFinite(frame.tick) ? frame.tick : index,
+    input: sanitizeInputState(frame.input),
+    position: [
+      Number.isFinite(frame.position[0]) ? frame.position[0] : 0,
+      Number.isFinite(frame.position[1]) ? frame.position[1] : 0,
+      Number.isFinite(frame.position[2]) ? frame.position[2] : 0
+    ],
+    speedKmh: Number.isFinite(frame.speedKmh) ? Math.max(0, frame.speedKmh) : 0,
+    checkpointOrder: Number.isFinite(frame.checkpointOrder) ? Math.max(0, Math.floor(frame.checkpointOrder)) : 0
+  }));
+
+  return {
+    version: 1,
+    label: trace.label.trim() || "trace",
+    trackId: trace.trackId.trim() || "unknown-track",
+    fixedStepHz:
+      Number.isFinite(trace.fixedStepHz) && trace.fixedStepHz > 0
+        ? trace.fixedStepHz
+        : TRACE_FIXED_STEP_HZ,
+    frames: normalizedFrames
+  };
+}
+
 export class VibeTrackGame {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene: THREE.Scene;
@@ -128,6 +207,22 @@ export class VibeTrackGame {
     respawn: false,
     restart: false
   };
+  private readonly replayInputState: InputState = {
+    throttle: 0,
+    brake: 0,
+    steer: 0,
+    handbrake: false,
+    respawn: false,
+    restart: false
+  };
+  private readonly blockedInputState: InputState = {
+    throttle: 0,
+    brake: 0,
+    steer: 0,
+    handbrake: false,
+    respawn: false,
+    restart: false
+  };
 
   private activeCheckpointOrders = new Set<number>();
   private activeBoostIds = new Set<string>();
@@ -136,6 +231,17 @@ export class VibeTrackGame {
   private lastPhase: RaceState["phase"] = "idle";
   private autoRightCountdownMs = 0;
   private freezeRemainingMs = 0;
+  private traceState: TraceReplayState = "idle";
+  private traceTick = 0;
+  private recordingTrace: InputTrace | null = null;
+  private lastTrace: InputTrace | null = null;
+  private replayTrace: InputTrace | null = null;
+  private replayCursor = 0;
+  private replayPeakY = 0;
+  private replayMaxSpeedKmh = 0;
+  private replayMaxCheckpointOrder = 0;
+  private replayAutoRespawns = 0;
+  private lastReplayResult: TraceReplayResult | null = null;
 
   private running = false;
   private rafId: number | null = null;
@@ -301,10 +407,13 @@ export class VibeTrackGame {
     const deltaSeconds = Math.min(0.05, this.clock.getDelta());
     const inputState = this.input.update();
     Object.assign(this.currentInputState, inputState);
+    this.handleTraceShortcuts();
 
-    this.handleOneShotActions(inputState);
+    const actionInputState =
+      this.traceState === "replaying" ? this.blockedInputState : inputState;
+    this.handleOneShotActions(actionInputState);
 
-    if (this.input.hasIntent(inputState)) {
+    if (this.input.hasIntent(actionInputState) || this.traceState === "replaying") {
       this.audio.ensureStarted();
     }
 
@@ -312,7 +421,11 @@ export class VibeTrackGame {
       if (this.freezeRemainingMs > 0) {
         return;
       }
-      this.simulate(fixedDelta, inputState);
+      const simulationInputState = this.resolveSimulationInput(inputState);
+      Object.assign(this.currentInputState, simulationInputState);
+      this.simulate(fixedDelta, simulationInputState);
+      this.recordTraceFrame(simulationInputState);
+      this.updateReplayMetrics();
     });
 
     if (this.freezeRemainingMs > 0) {
@@ -341,7 +454,7 @@ export class VibeTrackGame {
       telemetry.boostRemainingMs > 0
     );
 
-    this.hud.update(raceState, telemetry, this.autoRightCountdownMs);
+    this.hud.update(raceState, telemetry, this.autoRightCountdownMs, this.traceState);
     this.publishDebugState(raceState, telemetry);
 
     this.renderer.render(this.scene, this.camera);
@@ -472,6 +585,236 @@ export class VibeTrackGame {
     this.vehicle.respawn(
       resolveRespawnPose(this.track.definition, this.lastCheckpointOrder)
     );
+    if (this.traceState === "replaying") {
+      this.replayAutoRespawns += 1;
+    }
+  }
+
+  private handleTraceShortcuts(): void {
+    if (this.input.consumeTraceToggle()) {
+      if (this.traceState === "recording") {
+        this.stopInputTraceRecordingInternal();
+      } else if (this.traceState === "idle") {
+        this.startInputTraceRecordingInternal();
+      }
+    }
+
+    if (this.input.consumeTraceDownload() && this.lastTrace) {
+      this.downloadTrace(this.lastTrace);
+    }
+  }
+
+  private resolveSimulationInput(liveInputState: InputState): InputState {
+    if (this.traceState !== "replaying" || !this.replayTrace) {
+      return liveInputState;
+    }
+
+    if (this.replayCursor >= this.replayTrace.frames.length) {
+      this.finishReplay();
+      return this.blockedInputState;
+    }
+
+    const nextFrame = this.replayTrace.frames[this.replayCursor];
+    this.replayCursor += 1;
+    Object.assign(this.replayInputState, sanitizeInputState(nextFrame.input));
+    return this.replayInputState;
+  }
+
+  private startInputTraceRecordingInternal(label?: string): InputTrace {
+    const safeLabel = label?.trim() || `trace-${Date.now()}`;
+    this.recordingTrace = {
+      version: 1,
+      label: safeLabel,
+      trackId: this.track.definition.id,
+      fixedStepHz: TRACE_FIXED_STEP_HZ,
+      frames: []
+    };
+    this.traceTick = 0;
+    this.traceState = "recording";
+    return cloneTrace(this.recordingTrace);
+  }
+
+  private stopInputTraceRecordingInternal(): InputTrace {
+    if (!this.recordingTrace) {
+      if (this.lastTrace) {
+        return cloneTrace(this.lastTrace);
+      }
+
+      return {
+        version: 1,
+        label: "empty-trace",
+        trackId: this.track.definition.id,
+        fixedStepHz: TRACE_FIXED_STEP_HZ,
+        frames: []
+      };
+    }
+
+    this.traceState = "idle";
+    const finalized = cloneTrace(this.recordingTrace);
+    this.lastTrace = finalized;
+    this.recordingTrace = null;
+    return cloneTrace(finalized);
+  }
+
+  private recordTraceFrame(inputState: InputState): void {
+    if (this.traceState !== "recording" || !this.recordingTrace) {
+      return;
+    }
+
+    this.vehicle.getPosition(this.workingPosition);
+    const telemetry = this.vehicle.getTelemetry();
+    const raceState = this.raceSession.getState(telemetry.speedKmh);
+
+    this.recordingTrace.frames.push({
+      tick: this.traceTick,
+      input: cloneInputState(inputState),
+      position: [
+        this.workingPosition.x,
+        this.workingPosition.y,
+        this.workingPosition.z
+      ],
+      speedKmh: telemetry.speedKmh,
+      checkpointOrder: raceState.currentCheckpointOrder
+    });
+    this.traceTick += 1;
+  }
+
+  private playInputTraceInternal(trace: InputTrace, options: TraceReplayOptions = {}): void {
+    const normalizedTrace = normalizeTrace(trace);
+    if (normalizedTrace.frames.length === 0) {
+      return;
+    }
+
+    if (this.traceState === "recording") {
+      this.stopInputTraceRecordingInternal();
+    }
+
+    const shouldRestart = options.restartBeforePlay ?? true;
+    const startCheckpointOrder = options.startCheckpointOrder;
+    const initialSpeedKmh = options.initialSpeedKmh;
+
+    if (typeof startCheckpointOrder === "number") {
+      this.respawnAtCheckpointForTesting(startCheckpointOrder, initialSpeedKmh);
+    } else if (shouldRestart) {
+      this.respawnAtCheckpointForTesting(-1, initialSpeedKmh);
+    } else if (typeof initialSpeedKmh === "number" && initialSpeedKmh > 0) {
+      this.vehicle.setForwardSpeedKmh(initialSpeedKmh);
+    }
+
+    this.traceState = "replaying";
+    this.replayTrace = normalizedTrace;
+    this.replayCursor = 0;
+    this.replayAutoRespawns = 0;
+    this.lastReplayResult = null;
+    this.beginReplayMetrics();
+  }
+
+  private beginReplayMetrics(): void {
+    this.vehicle.getPosition(this.workingPosition);
+    const telemetry = this.vehicle.getTelemetry();
+    const raceState = this.raceSession.getState(telemetry.speedKmh);
+
+    this.replayPeakY = this.workingPosition.y;
+    this.replayMaxSpeedKmh = telemetry.speedKmh;
+    this.replayMaxCheckpointOrder = raceState.currentCheckpointOrder;
+  }
+
+  private updateReplayMetrics(): void {
+    if (this.traceState !== "replaying") {
+      return;
+    }
+
+    this.vehicle.getPosition(this.workingPosition);
+    const telemetry = this.vehicle.getTelemetry();
+    const raceState = this.raceSession.getState(telemetry.speedKmh);
+
+    this.replayPeakY = Math.max(this.replayPeakY, this.workingPosition.y);
+    this.replayMaxSpeedKmh = Math.max(this.replayMaxSpeedKmh, telemetry.speedKmh);
+    this.replayMaxCheckpointOrder = Math.max(
+      this.replayMaxCheckpointOrder,
+      raceState.currentCheckpointOrder
+    );
+  }
+
+  private finishReplay(): void {
+    if (this.traceState !== "replaying") {
+      return;
+    }
+
+    this.updateReplayMetrics();
+    const replayFrameCount = this.replayCursor;
+    const durationMs = Math.round((replayFrameCount / TRACE_FIXED_STEP_HZ) * 1000);
+    const finished = this.raceSession.getPhase() === "finished";
+
+    this.lastReplayResult = {
+      finished,
+      maxCheckpointOrder: this.replayMaxCheckpointOrder,
+      peakY: this.replayPeakY,
+      maxSpeedKmh: this.replayMaxSpeedKmh,
+      autoRespawns: this.replayAutoRespawns,
+      durationMs
+    };
+
+    this.traceState = "idle";
+    this.replayTrace = null;
+    this.replayCursor = 0;
+    Object.assign(this.replayInputState, this.blockedInputState);
+  }
+
+  private getTraceReplayStateSnapshot(): {
+    state: TraceReplayState;
+    cursor: number;
+    totalFrames: number;
+    label: string | null;
+  } {
+    return {
+      state: this.traceState,
+      cursor: this.replayCursor,
+      totalFrames: this.replayTrace?.frames.length ?? 0,
+      label: this.replayTrace?.label ?? null
+    };
+  }
+
+  private downloadTrace(trace: InputTrace): void {
+    const serialized = JSON.stringify(trace, null, 2);
+    const blob = new Blob([serialized], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    const safeLabel = trace.label.replace(/[^a-zA-Z0-9-_]/g, "-").toLowerCase();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    anchor.href = url;
+    anchor.download = `${safeLabel || "vibetrack-trace"}-${timestamp}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  private respawnAtCheckpointForTesting(order: number, initialSpeedKmh?: number): void {
+    const maxOrder = this.track.definition.checkpoints.length - 1;
+    const clampedOrder = Math.max(-1, Math.min(maxOrder, Math.floor(order)));
+    this.raceSession.restartRun();
+    this.raceSession.update(16, true);
+    this.raceSession.update(3200, false);
+
+    for (let checkpointOrder = 0; checkpointOrder <= clampedOrder; checkpointOrder += 1) {
+      this.raceSession.registerCheckpoint(checkpointOrder);
+    }
+
+    this.lastCheckpointOrder = clampedOrder;
+    this.activeCheckpointOrders = new Set<number>();
+    this.activeBoostIds = new Set<string>();
+    this.autoRightCountdownMs = 0;
+    this.vehicle.respawn(resolveRespawnPose(this.track.definition, clampedOrder));
+    if (typeof initialSpeedKmh === "number" && initialSpeedKmh > 0) {
+      this.vehicle.setForwardSpeedKmh(initialSpeedKmh);
+    }
+  }
+
+  private respawnAtSpawnForTesting(): void {
+    this.lastCheckpointOrder = -1;
+    this.activeCheckpointOrders = new Set<number>();
+    this.activeBoostIds = new Set<string>();
+    this.autoRightCountdownMs = 0;
+    this.vehicle.respawn(this.track.getSpawnPose());
   }
 
   private publishDebugState(raceState: RaceState, telemetry: VehicleTelemetry): void {
@@ -500,32 +843,23 @@ export class VibeTrackGame {
   private exposeTestApi(): void {
     window.__VIBETRACK_TEST_API__ = {
       respawnAtCheckpoint: (order: number, initialSpeedKmh?: number) => {
-        const maxOrder = this.track.definition.checkpoints.length - 1;
-        const clampedOrder = Math.max(-1, Math.min(maxOrder, Math.floor(order)));
-        this.raceSession.restartRun();
-        this.raceSession.update(16, true);
-        this.raceSession.update(3200, false);
-
-        for (let checkpointOrder = 0; checkpointOrder <= clampedOrder; checkpointOrder += 1) {
-          this.raceSession.registerCheckpoint(checkpointOrder);
-        }
-
-        this.lastCheckpointOrder = clampedOrder;
-        this.activeCheckpointOrders = new Set<number>();
-        this.activeBoostIds = new Set<string>();
-        this.autoRightCountdownMs = 0;
-        this.vehicle.respawn(resolveRespawnPose(this.track.definition, clampedOrder));
-        if (typeof initialSpeedKmh === "number" && initialSpeedKmh > 0) {
-          this.vehicle.setForwardSpeedKmh(initialSpeedKmh);
-        }
+        this.respawnAtCheckpointForTesting(order, initialSpeedKmh);
       },
       respawnAtSpawn: () => {
-        this.lastCheckpointOrder = -1;
-        this.activeCheckpointOrders = new Set<number>();
-        this.activeBoostIds = new Set<string>();
-        this.autoRightCountdownMs = 0;
-        this.vehicle.respawn(this.track.getSpawnPose());
-      }
+        this.respawnAtSpawnForTesting();
+      },
+      startInputTraceRecording: (label?: string) => this.startInputTraceRecordingInternal(label),
+      stopInputTraceRecording: () => this.stopInputTraceRecordingInternal(),
+      playInputTrace: (trace: InputTrace, options?: TraceReplayOptions) => {
+        this.playInputTraceInternal(trace, options);
+      },
+      getInputTraceReplayState: () => this.getTraceReplayStateSnapshot(),
+      getLastInputTraceResult: () =>
+        this.lastReplayResult
+          ? {
+              ...this.lastReplayResult
+            }
+          : null
     };
   }
 }
