@@ -10,9 +10,10 @@ import { FixedStepRunner } from "./fixedStep";
 import { TrackRuntime } from "../track/TrackRuntime";
 import { loadPremiumTrack } from "../track/loadTrack";
 import { Hud } from "../ui/Hud";
-import { InputState, VehicleTuning } from "../types";
+import { InputState, RaceState, VehicleTuning } from "../types";
 
 const FIXED_STEP_SECONDS = 1 / 120;
+const BEST_LAP_STORAGE_KEY = "vibetrack.bestLapMs";
 
 const DEFAULT_TUNING: VehicleTuning = {
   massKg: 1200,
@@ -53,6 +54,7 @@ export class VibeTrackGame {
   private activeBoostIds = new Set<string>();
 
   private lastCheckpointOrder = -1;
+  private lastPhase: RaceState["phase"] = "idle";
 
   private running = false;
   private rafId: number | null = null;
@@ -114,7 +116,11 @@ export class VibeTrackGame {
       vehicle.getForwardVector(new THREE.Vector3())
     );
 
-    const raceSession = new RaceSession(trackDefinition.checkpoints.length);
+    const savedBestMsRaw = window.localStorage.getItem(BEST_LAP_STORAGE_KEY);
+    const savedBestMs = Number(savedBestMsRaw);
+    const initialBestMs = Number.isFinite(savedBestMs) ? savedBestMs : null;
+
+    const raceSession = new RaceSession(trackDefinition.checkpoints.length, initialBestMs);
 
     const input = new InputManager(window);
     const hud = new Hud();
@@ -206,6 +212,7 @@ export class VibeTrackGame {
 
     const telemetry = this.vehicle.getTelemetry();
     const raceState = this.raceSession.getState(telemetry.speedKmh);
+    this.persistBestLapIfNeeded(raceState);
 
     this.vehicle.getPosition(this.workingPosition);
     this.vehicle.getForwardVector(this.workingForward);
@@ -291,5 +298,13 @@ export class VibeTrackGame {
       this.activeCheckpointOrders = new Set<number>();
       this.activeBoostIds = new Set<string>();
     }
+  }
+
+  private persistBestLapIfNeeded(raceState: RaceState): void {
+    if (raceState.phase === "finished" && this.lastPhase !== "finished" && raceState.bestMs !== null) {
+      window.localStorage.setItem(BEST_LAP_STORAGE_KEY, Math.round(raceState.bestMs).toString());
+    }
+
+    this.lastPhase = raceState.phase;
   }
 }
