@@ -408,6 +408,13 @@ export class VibeTrackGame {
     const inputState = this.input.update();
     Object.assign(this.currentInputState, inputState);
     this.handleTraceShortcuts();
+    this.handleExperimentalShortcuts();
+
+    if (this.traceState === "replaying") {
+      this.vehicle.setFlightTurbo(false);
+    } else {
+      this.vehicle.setFlightTurbo(this.input.isTurboHeld());
+    }
 
     const actionInputState =
       this.traceState === "replaying" ? this.blockedInputState : inputState;
@@ -565,6 +572,11 @@ export class VibeTrackGame {
   }
 
   private updateAutoRight(deltaSeconds: number): void {
+    if (this.vehicle.isFlyModeEnabled()) {
+      this.autoRightCountdownMs = 0;
+      return;
+    }
+
     const telemetry = this.vehicle.getTelemetry();
     const shouldTrackAutoRight =
       this.vehicle.isUpsideDown() && !telemetry.isGrounded && telemetry.speedKmh < 45;
@@ -601,6 +613,17 @@ export class VibeTrackGame {
 
     if (this.input.consumeTraceDownload() && this.lastTrace) {
       this.downloadTrace(this.lastTrace);
+    }
+  }
+
+  private handleExperimentalShortcuts(): void {
+    if (this.traceState === "replaying") {
+      return;
+    }
+
+    if (this.input.consumeFlyToggle()) {
+      this.vehicle.setFlyMode(!this.vehicle.isFlyModeEnabled());
+      this.autoRightCountdownMs = 0;
     }
   }
 
@@ -836,7 +859,9 @@ export class VibeTrackGame {
       autoRightCountdownMs: this.autoRightCountdownMs,
       slipAngleDeg: this.vehicle.getSlipAngleDeg(),
       yawRate: this.vehicle.getYawRate(),
-      yawAssistTorque: this.vehicle.getYawAssistTorque()
+      yawAssistTorque: this.vehicle.getYawAssistTorque(),
+      flyModeEnabled: telemetry.flyModeEnabled,
+      flightTurboEnabled: telemetry.flightTurboEnabled
     };
   }
 

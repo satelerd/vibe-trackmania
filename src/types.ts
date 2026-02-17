@@ -128,6 +128,8 @@ export interface VehicleTelemetry {
   speedKmh: number;
   isGrounded: boolean;
   boostRemainingMs: number;
+  flyModeEnabled: boolean;
+  flightTurboEnabled: boolean;
 }
 
 export interface DebugSnapshot {
@@ -145,6 +147,8 @@ export interface DebugSnapshot {
   slipAngleDeg: number;
   yawRate: number;
   yawAssistTorque: number;
+  flyModeEnabled: boolean;
+  flightTurboEnabled: boolean;
 }
 
 export interface RuntimeOptions {
