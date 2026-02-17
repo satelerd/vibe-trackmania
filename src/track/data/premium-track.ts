@@ -9,12 +9,12 @@ interface DistanceMarker {
 const CHECKPOINT_MARKERS: DistanceMarker[] = [
   { id: "cp0", distance: 48 },
   { id: "cp1", distance: 176 },
-  { id: "cp2", distance: 270 },
-  { id: "cp3", distance: 328 },
-  { id: "cp4", distance: 392 },
-  { id: "cp5", distance: 452 },
-  { id: "cp6", distance: 564 },
-  { id: "cp7", distance: 656 }
+  { id: "cp2", distance: 188 },
+  { id: "cp3", distance: 200 },
+  { id: "cp4", distance: 372 },
+  { id: "cp5", distance: 430 },
+  { id: "cp6", distance: 548 },
+  { id: "cp7", distance: 632 }
 ];
 
 const BOOST_MARKERS: Array<
@@ -24,8 +24,8 @@ const BOOST_MARKERS: Array<
   }
 > = [
   { id: "boost-start", distance: 62, force: 120, durationMs: 820 },
-  { id: "boost-jump-entry", distance: 184, force: 250, durationMs: 1350 },
-  { id: "boost-loop-entry", distance: 340, force: 320, durationMs: 1600 },
+  { id: "boost-jump-entry", distance: 184, force: 280, durationMs: 1500 },
+  { id: "boost-loop-entry", distance: 340, force: 520, durationMs: 2600 },
   { id: "boost-home", distance: 628, force: 180, durationMs: 900 }
 ];
 
@@ -39,10 +39,10 @@ function buildCheckpoints(builder: TrackBuilder): CheckpointDef[] {
       order,
       position: [
         sampled.position[0],
-        sampled.position[1] + (atLoopCrown ? 2.2 : 2.8),
+        sampled.position[1] + (atLoopCrown ? 1.1 : 2.8),
         sampled.position[2]
       ],
-      size: atLoopCrown ? [18, 16, 18] : [16, 8, 12]
+      size: atLoopCrown ? [30, 24, 30] : [16, 8, 12]
     };
   });
 }
@@ -74,30 +74,30 @@ export function buildPremiumTrackDefinition(): TrackDefinition {
   builder.addYawArc(52, 50, { bankDeg: 14, colorHex: 0x2b5482, stepLength: 3.1 });
   builder.addStraight(36, { colorHex: 0x315f8f, stepLength: 4.5 });
   builder.addJump({
-    rampLength: 18,
-    rampPitchDeg: 16,
+    rampLength: 19,
+    rampPitchDeg: 20,
     gapLength: 13,
-    gapDropMeters: 3.6,
-    landingPitchDeg: -16,
+    gapDropMeters: 4.8,
+    landingPitchDeg: -18,
     landingLength: 34,
     colorHex: 0x3d6f96,
     stepLength: 2.4,
     width: 24
   });
   builder.addStraight(34, { colorHex: 0x406f9d, stepLength: 4.2 });
-  builder.addPitchArc(24, 52, {
+  builder.addPitchArc(22, 52, {
     colorHex: 0x42659b,
     railMode: "both",
     steps: 14,
     width: 24
   });
-  builder.addPitchArc(16, 256, {
+  builder.addPitchArc(12.5, 256, {
     colorHex: 0x3f5b91,
     railMode: "both",
     steps: 36,
     width: 24
   });
-  builder.addPitchArc(24, 52, {
+  builder.addPitchArc(22, 52, {
     colorHex: 0x3a5689,
     railMode: "both",
     steps: 14,
