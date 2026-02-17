@@ -109,6 +109,57 @@ canvas {
   background: rgba(0, 0, 0, 0.25);
 }
 
+.hud-center {
+  align-self: center;
+  min-width: 7rem;
+  min-height: 5rem;
+  margin: 0.5rem 0;
+  display: grid;
+  place-items: center;
+  font-size: clamp(2.6rem, 8vw, 4.8rem);
+  font-weight: 700;
+  color: #eff9ff;
+  text-shadow: 0 0 24px rgba(90, 190, 255, 0.45);
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 120ms ease-out, transform 120ms ease-out;
+}
+
+.hud-center-countdown,
+.hud-center-go {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.hud-center-go {
+  color: #7dffb8;
+  text-shadow: 0 0 28px rgba(77, 255, 170, 0.55);
+}
+
+.hud-split-good {
+  color: #57ec96;
+}
+
+.hud-split-bad {
+  color: #ffbe6b;
+}
+
+.hud-split-flash {
+  animation: split-flash 260ms ease-out;
+}
+
+@keyframes split-flash {
+  0% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 rgba(111, 215, 255, 0.4);
+  }
+
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(111, 215, 255, 0);
+  }
+}
+
 @media (max-width: 840px) {
   .hud-top,
   .hud-bottom {
@@ -119,5 +170,10 @@ canvas {
   .hud-controls {
     width: 100%;
     border-radius: 14px;
+  }
+
+  .hud-center {
+    min-height: 4rem;
+    font-size: clamp(2.2rem, 12vw, 4rem);
   }
 }

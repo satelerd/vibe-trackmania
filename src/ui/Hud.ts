@@ -31,6 +31,9 @@ export class Hud {
   private readonly bestValue = document.createElement("div");
   private readonly checkpointValue = document.createElement("div");
   private readonly splitValue = document.createElement("div");
+  private readonly centerValue = document.createElement("div");
+  private lastRenderedSplitMs: number | null = null;
+  private splitFlashTimeout: number | null = null;
 
   constructor() {
     this.root.className = "hud-root";
@@ -50,6 +53,7 @@ export class Hud {
     this.bestValue.className = "hud-best";
     this.checkpointValue.className = "hud-checkpoint";
     this.splitValue.className = "hud-split";
+    this.centerValue.className = "hud-center";
 
     bottomPanel.append(this.statusValue, this.bestValue, this.checkpointValue, this.splitValue);
 
@@ -58,23 +62,18 @@ export class Hud {
     controls.textContent =
       "W/Up: throttle | S/Down: brake-reverse | A/D or Left/Right: steer | Space/B: handbrake | R/A: respawn | Backspace/Start: restart";
 
-    this.root.append(topPanel, bottomPanel, controls);
+    this.root.append(topPanel, this.centerValue, bottomPanel, controls);
     document.body.append(this.root);
   }
 
-  update(
-    state: RaceState,
-    telemetry: HudTelemetry,
-    countdownMs: number,
-    autoRightCountdownMs: number
-  ): void {
+  update(state: RaceState, telemetry: HudTelemetry, autoRightCountdownMs: number): void {
     this.speedValue.textContent = `${Math.round(telemetry.speedKmh)} km/h`;
 
     if (state.phase === "idle") {
       this.timerValue.textContent = "00:00.000";
       this.statusValue.textContent = "Press throttle to start countdown";
     } else if (state.phase === "countdown") {
-      this.timerValue.textContent = `${(countdownMs / 1000).toFixed(2)}s`;
+      this.timerValue.textContent = `${(state.countdownRemainingMs / 1000).toFixed(2)}s`;
       this.statusValue.textContent = "Countdown";
     } else if (state.phase === "running") {
       this.timerValue.textContent = formatLapTime(state.elapsedMs);
@@ -90,6 +89,18 @@ export class Hud {
       this.statusValue.textContent = "Finish! Hit restart for another run";
     }
 
+    if (state.phase === "countdown") {
+      const countdownStep = Math.max(1, Math.ceil(state.countdownRemainingMs / 1000));
+      this.centerValue.textContent = String(countdownStep);
+      this.centerValue.className = "hud-center hud-center-countdown";
+    } else if (state.goFlashRemainingMs > 0) {
+      this.centerValue.textContent = "GO!";
+      this.centerValue.className = "hud-center hud-center-go";
+    } else {
+      this.centerValue.textContent = "";
+      this.centerValue.className = "hud-center";
+    }
+
     if (state.bestMs !== null) {
       this.bestValue.textContent = `Best: ${formatLapTime(state.bestMs)}`;
     } else {
@@ -97,10 +108,17 @@ export class Hud {
     }
 
     this.checkpointValue.textContent = `Checkpoint: ${state.currentCheckpointOrder}`;
+    this.splitValue.className = "hud-split";
 
     if (state.lastSplitMs === null) {
       this.splitValue.textContent = "Split: --";
+      this.lastRenderedSplitMs = null;
       return;
+    }
+
+    if (state.lastSplitMs !== this.lastRenderedSplitMs) {
+      this.lastRenderedSplitMs = state.lastSplitMs;
+      this.triggerSplitFlash();
     }
 
     if (state.lastSplitDeltaMs === null) {
@@ -108,6 +126,24 @@ export class Hud {
       return;
     }
 
+    if (state.lastSplitDeltaMs < 0) {
+      this.splitValue.classList.add("hud-split-good");
+    } else if (state.lastSplitDeltaMs > 0) {
+      this.splitValue.classList.add("hud-split-bad");
+    }
+
     this.splitValue.textContent = `Split Δ: ${formatDelta(state.lastSplitDeltaMs)}`;
+  }
+
+  private triggerSplitFlash(): void {
+    this.splitValue.classList.add("hud-split-flash");
+    if (this.splitFlashTimeout !== null) {
+      window.clearTimeout(this.splitFlashTimeout);
+    }
+
+    this.splitFlashTimeout = window.setTimeout(() => {
+      this.splitValue.classList.remove("hud-split-flash");
+      this.splitFlashTimeout = null;
+    }, 260);
   }
 }
