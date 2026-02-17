@@ -334,6 +334,22 @@ export class VehicleController {
     };
   }
 
+  setForwardSpeedKmh(speedKmh: number): void {
+    const speedMs = Math.max(0, speedKmh) / 3.6;
+    this.getForwardVector(this.workingForwardVector);
+
+    const currentLinearVelocity = this.body.linvel();
+    this.body.setLinvel(
+      {
+        x: this.workingForwardVector.x * speedMs,
+        y: currentLinearVelocity.y,
+        z: this.workingForwardVector.z * speedMs
+      },
+      true
+    );
+    this.speedMs = speedMs;
+  }
+
   private setupWheels(): void {
     const wheelOffsets = [
       new THREE.Vector3(1.0, -0.4, 1.37),
