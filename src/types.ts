@@ -40,12 +40,21 @@ export interface CheckpointDef {
   order: number;
 }
 
+export interface SegmentRotation {
+  yaw: number;
+  pitch: number;
+  roll: number;
+}
+
+export type SegmentRailMode = "both" | "left" | "right" | "none";
+
 export interface TrackSegmentDef {
   id: string;
   position: Vec3;
   size: Vec3;
-  yaw: number;
+  rotation: SegmentRotation;
   colorHex?: number;
+  railMode?: SegmentRailMode;
 }
 
 export interface BoostPadDef {
@@ -94,6 +103,7 @@ export interface DebugSnapshot {
   quality: QualityPreset;
   position: Vec3;
   forward: Vec3;
+  up: Vec3;
   checkpointOrder: number;
   boostRemainingMs: number;
   inputSteer: number;
