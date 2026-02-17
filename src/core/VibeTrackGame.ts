@@ -13,7 +13,9 @@ import { Hud } from "../ui/Hud";
 import {
   DebugSnapshot,
   InputState,
+  QualityPreset,
   RaceState,
+  RuntimeOptions,
   VehicleTelemetry,
   VehicleTuning
 } from "../types";
@@ -72,6 +74,18 @@ function parseBestSplits(rawValue: string | null): number[] | null {
   }
 }
 
+function parseQualityPreset(search: string): QualityPreset {
+  const params = new URLSearchParams(search);
+  const qualityParam = params.get("quality");
+  return qualityParam === "medium" ? "medium" : "high";
+}
+
+function resolveRuntimeOptions(search: string): RuntimeOptions {
+  return {
+    quality: parseQualityPreset(search)
+  };
+}
+
 export class VibeTrackGame {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene: THREE.Scene;
@@ -89,6 +103,7 @@ export class VibeTrackGame {
 
   private readonly fixedStepRunner = new FixedStepRunner(FIXED_STEP_SECONDS);
   private readonly clock = new THREE.Clock();
+  private readonly runtimeOptions: RuntimeOptions;
 
   private readonly workingPosition = new THREE.Vector3();
   private readonly workingForward = new THREE.Vector3();
@@ -128,19 +143,24 @@ export class VibeTrackGame {
     this.camera.updateProjectionMatrix();
 
     this.renderer.setSize(width, height);
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    const pixelRatioCap = this.runtimeOptions.quality === "high" ? 2 : 1.25;
+    this.renderer.setPixelRatio(Math.min(pixelRatioCap, window.devicePixelRatio));
   };
 
   static async bootstrap(container: HTMLElement): Promise<VibeTrackGame> {
     await RAPIER.init();
+    const runtimeOptions = resolveRuntimeOptions(window.location.search);
+    const highQuality = runtimeOptions.quality === "high";
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color("#79bfdc");
-    scene.fog = new THREE.Fog("#79bfdc", 120, 460);
+    scene.fog = highQuality
+      ? new THREE.Fog("#79bfdc", 120, 460)
+      : new THREE.Fog("#79bfdc", 90, 320);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.enabled = highQuality;
+    renderer.shadowMap.type = highQuality ? THREE.PCFSoftShadowMap : THREE.BasicShadowMap;
 
     const camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.1, 1300);
 
@@ -152,13 +172,15 @@ export class VibeTrackGame {
 
     const sunLight = new THREE.DirectionalLight("#fff8df", 1.55);
     sunLight.position.set(120, 220, 90);
-    sunLight.castShadow = true;
-    sunLight.shadow.camera.near = 0.5;
-    sunLight.shadow.camera.far = 600;
-    sunLight.shadow.camera.left = -180;
-    sunLight.shadow.camera.right = 180;
-    sunLight.shadow.camera.top = 180;
-    sunLight.shadow.camera.bottom = -180;
+    sunLight.castShadow = highQuality;
+    if (highQuality) {
+      sunLight.shadow.camera.near = 0.5;
+      sunLight.shadow.camera.far = 600;
+      sunLight.shadow.camera.left = -180;
+      sunLight.shadow.camera.right = 180;
+      sunLight.shadow.camera.top = 180;
+      sunLight.shadow.camera.bottom = -180;
+    }
     scene.add(sunLight);
 
     const trackDefinition = loadPremiumTrack();
@@ -206,7 +228,8 @@ export class VibeTrackGame {
       trackRuntime,
       vehicle,
       chaseCamera,
-      raceSession
+      raceSession,
+      runtimeOptions
     );
   }
 
@@ -221,7 +244,8 @@ export class VibeTrackGame {
     track: TrackRuntime,
     vehicle: VehicleController,
     chaseCamera: ChaseCameraRig,
-    raceSession: RaceSession
+    raceSession: RaceSession,
+    runtimeOptions: RuntimeOptions
   ) {
     this.renderer = renderer;
     this.scene = scene;
@@ -234,6 +258,7 @@ export class VibeTrackGame {
     this.vehicle = vehicle;
     this.chaseCamera = chaseCamera;
     this.raceSession = raceSession;
+    this.runtimeOptions = runtimeOptions;
 
     this.resizeHandler();
     window.addEventListener("resize", this.resizeHandler);
@@ -443,6 +468,7 @@ export class VibeTrackGame {
     window.__VIBETRACK_DEBUG__ = {
       speedKmh: telemetry.speedKmh,
       phase: raceState.phase,
+      quality: this.runtimeOptions.quality,
       position: [
         this.workingPosition.x,
         this.workingPosition.y,

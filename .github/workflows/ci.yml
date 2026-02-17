@@ -41,8 +41,15 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Build Report
+        run: pnpm build:report
+
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium
 
       - name: E2E
-        run: pnpm test:e2e
+        run: |
+          START_TS=$(date +%s)
+          pnpm test:e2e
+          END_TS=$(date +%s)
+          echo "E2E duration: $((END_TS - START_TS))s"
