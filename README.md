@@ -24,7 +24,14 @@ pnpm install
 pnpm dev
 pnpm typecheck
 pnpm test
+pnpm test:e2e
 pnpm build
+```
+
+Primera vez para E2E local:
+
+```bash
+pnpm exec playwright install chromium
 ```
 
 Nota: con `Node v20.0.0` Vite muestra advertencia de versión recomendada (`20.19+`), pero en este entorno build/test están pasando.
@@ -49,6 +56,7 @@ Nota: con `Node v20.0.0` Vite muestra advertencia de versión recomendada (`20.1
 - `src/ui`: HUD
 - `src/audio`: audio procedural
 - `src/test`: tests unitarios e integración
+- `e2e`: tests E2E automatizados con Playwright (aceleración, giro, respawn)
 
 ## Flujo de trabajo GitHub
 

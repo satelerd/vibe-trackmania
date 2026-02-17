@@ -75,3 +75,12 @@ export interface VehicleTelemetry {
   isGrounded: boolean;
   boostRemainingMs: number;
 }
+
+export interface DebugSnapshot {
+  speedKmh: number;
+  phase: RacePhase;
+  position: Vec3;
+  forward: Vec3;
+  checkpointOrder: number;
+  boostRemainingMs: number;
+}

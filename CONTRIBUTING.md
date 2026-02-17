@@ -12,7 +12,7 @@
 2. Commits frecuentes y descriptivos.
 3. Abrir PR en Draft al comenzar.
 4. Completar checklist de PR template.
-5. Dejar CI en verde (`typecheck`, `test`, `build`).
+5. Dejar CI en verde (`typecheck`, `test`, `build`, `test:e2e`).
 6. Hacer merge squash al finalizar.
 
 ## Commit style recomendado

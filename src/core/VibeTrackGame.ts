@@ -10,21 +10,33 @@ import { FixedStepRunner } from "./fixedStep";
 import { TrackRuntime } from "../track/TrackRuntime";
 import { loadPremiumTrack } from "../track/loadTrack";
 import { Hud } from "../ui/Hud";
-import { InputState, RaceState, VehicleTuning } from "../types";
+import {
+  DebugSnapshot,
+  InputState,
+  RaceState,
+  VehicleTelemetry,
+  VehicleTuning
+} from "../types";
 
 const FIXED_STEP_SECONDS = 1 / 120;
 const BEST_LAP_STORAGE_KEY = "vibetrack.bestLapMs";
 
+declare global {
+  interface Window {
+    __VIBETRACK_DEBUG__?: DebugSnapshot;
+  }
+}
+
 const DEFAULT_TUNING: VehicleTuning = {
   massKg: 1200,
   maxSpeedKmh: 315,
-  engineForce: 158,
-  brakeForce: 62,
+  engineForce: 4200,
+  brakeForce: 240,
   steerRate: 0.53,
   suspensionRest: 0.35,
-  suspensionSpring: 36,
-  suspensionDamper: 3.9,
-  tireGrip: 2.3,
+  suspensionSpring: 42,
+  suspensionDamper: 4.2,
+  tireGrip: 3.2,
   driftGripFactorRear: 0.54,
   airControlTorque: 13
 };
@@ -190,6 +202,7 @@ export class VibeTrackGame {
     }
     this.input.dispose();
     window.removeEventListener("resize", this.resizeHandler);
+    delete window.__VIBETRACK_DEBUG__;
   }
 
   private readonly frame = (): void => {
@@ -231,6 +244,7 @@ export class VibeTrackGame {
     );
 
     this.hud.update(raceState, telemetry, this.raceSession.getCountdownRemainingMs());
+    this.publishDebugState(raceState, telemetry);
 
     this.renderer.render(this.scene, this.camera);
     this.rafId = window.requestAnimationFrame(this.frame);
@@ -306,5 +320,20 @@ export class VibeTrackGame {
     }
 
     this.lastPhase = raceState.phase;
+  }
+
+  private publishDebugState(raceState: RaceState, telemetry: VehicleTelemetry): void {
+    window.__VIBETRACK_DEBUG__ = {
+      speedKmh: telemetry.speedKmh,
+      phase: raceState.phase,
+      position: [
+        this.workingPosition.x,
+        this.workingPosition.y,
+        this.workingPosition.z
+      ],
+      forward: [this.workingForward.x, this.workingForward.y, this.workingForward.z],
+      checkpointOrder: raceState.currentCheckpointOrder,
+      boostRemainingMs: telemetry.boostRemainingMs
+    };
   }
 }

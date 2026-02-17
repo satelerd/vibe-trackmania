@@ -12,6 +12,8 @@ interface WheelRuntime {
 }
 
 const WHEEL_RADIUS = 0.43;
+const CHASSIS_HALF_EXTENTS = { x: 1.03, y: 0.4, z: 2.15 } as const;
+const CHASSIS_LOCAL_TRANSLATION = { x: 0, y: -0.2, z: 0 } as const;
 
 export class VehicleController {
   readonly sceneGroup = new THREE.Group();
@@ -56,9 +58,26 @@ export class VehicleController {
     this.body = this.world.createRigidBody(bodyDesc);
     this.body.setAdditionalSolverIterations(4);
 
-    const chassisCollider = RAPIER.ColliderDesc.cuboid(1.03, 0.4, 2.15)
-      .setTranslation(0, -0.2, 0)
-      .setDensity(Math.max(0.1, this.tuning.massKg / 2.2))
+    const chassisVolume =
+      CHASSIS_HALF_EXTENTS.x *
+      2 *
+      CHASSIS_HALF_EXTENTS.y *
+      2 *
+      CHASSIS_HALF_EXTENTS.z *
+      2;
+    const chassisDensity = Math.max(1, this.tuning.massKg / Math.max(0.0001, chassisVolume));
+
+    const chassisCollider = RAPIER.ColliderDesc.cuboid(
+      CHASSIS_HALF_EXTENTS.x,
+      CHASSIS_HALF_EXTENTS.y,
+      CHASSIS_HALF_EXTENTS.z
+    )
+      .setTranslation(
+        CHASSIS_LOCAL_TRANSLATION.x,
+        CHASSIS_LOCAL_TRANSLATION.y,
+        CHASSIS_LOCAL_TRANSLATION.z
+      )
+      .setDensity(chassisDensity)
       .setFriction(1.1)
       .setRestitution(0.0);
 
@@ -231,7 +250,10 @@ export class VehicleController {
       this.vehicle.setWheelSuspensionStiffness(index, this.tuning.suspensionSpring);
       this.vehicle.setWheelSuspensionCompression(index, this.tuning.suspensionDamper);
       this.vehicle.setWheelSuspensionRelaxation(index, this.tuning.suspensionDamper * 1.08);
-      this.vehicle.setWheelMaxSuspensionForce(index, 1900);
+      this.vehicle.setWheelMaxSuspensionForce(
+        index,
+        Math.max(9000, this.tuning.massKg * 12)
+      );
       this.vehicle.setWheelFrictionSlip(index, this.tuning.tireGrip);
       this.vehicle.setWheelSideFrictionStiffness(index, 1.4);
     }
