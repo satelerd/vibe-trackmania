@@ -13,7 +13,7 @@ interface CheckpointRuntime {
 
 interface BoostPadRuntime {
   definition: BoostPadDef;
-  bounds: THREE.Box3;
+  triggerBounds: THREE.Box3;
 }
 
 function vec3ToThree(value: Vec3): THREE.Vector3 {
@@ -65,7 +65,7 @@ export class TrackRuntime {
   getBoostPadsAtPosition(position: THREE.Vector3): BoostPadDef[] {
     const hits: BoostPadDef[] = [];
     for (const boostPad of this.boostPads) {
-      if (boostPad.bounds.containsPoint(position)) {
+      if (boostPad.triggerBounds.containsPoint(position)) {
         hits.push(boostPad.definition);
       }
     }
@@ -228,7 +228,12 @@ export class TrackRuntime {
     for (const boostPad of this.definition.boostPads) {
       const size = vec3ToThree(boostPad.size);
       const center = vec3ToThree(boostPad.position);
-      const bounds = new THREE.Box3().setFromCenterAndSize(center, size);
+      const triggerSize = size.clone();
+      triggerSize.x *= 1.15;
+      triggerSize.z *= 1.2;
+      triggerSize.y = Math.max(triggerSize.y, 3.2);
+
+      const triggerBounds = new THREE.Box3().setFromCenterAndSize(center, triggerSize);
 
       const boostMesh = new THREE.Mesh(
         new THREE.BoxGeometry(size.x, size.y, size.z),
@@ -239,7 +244,7 @@ export class TrackRuntime {
 
       this.boostPads.push({
         definition: boostPad,
-        bounds
+        triggerBounds
       });
     }
 
