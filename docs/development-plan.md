@@ -9,6 +9,23 @@ Objetivo: cerrar el gap entre estado actual y "se siente Trackmania" con entrega
 - HUD: tiempo, velocidad, checkpoint, best lap/splits.
 - Audio base: motor/viento/boost/checkpoint.
 - QA automatizada: unit + integration + Playwright e2e.
+- Track premium reconstruida con builder modular: rectas/arcos/saltos/loop con segmentos conectados.
+- Checkpoints ubicados antes y despues de saltos para evitar respawn en aire.
+- Test API interna para QA e2e de secciones stunt (respawn por checkpoint con velocidad inicial).
+
+## Actualizacion Day 3.4-3.6 (stunt rebuild)
+
+- Se migro el schema de segmentos a rotacion 3D completa (`yaw/pitch/roll`) y `railMode`.
+- Runtime de pista actualizado a quaternions para visual/collision/rails.
+- Camara chase ahora acompana el `up` real del auto (roll incluido).
+- Se reemplazo `premium-track.json` por generacion deterministica TS (`TrackBuilder`).
+- Se rediseno la pista para loop + dos saltos con boosts de entrada y continuidad controlada.
+- Se agregaron tests de builder:
+  - determinismo
+  - continuidad de segmentos
+  - checkpoints cercanos a superficie drivable
+  - presencia de orientacion invertida en modulo loop
+- Se ampliaron e2e de controles con validacion stunt por seccion (jump/loop).
 
 ## Brechas prioritarias
 
