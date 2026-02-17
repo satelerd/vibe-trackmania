@@ -8,8 +8,8 @@ async function readDebug(page) {
   return data;
 }
 
-async function waitGameReady(page) {
-  await page.goto("/");
+async function waitGameReady(page, path = "/") {
+  await page.goto(path);
   await expect
     .poll(() => page.evaluate(() => Boolean(window.__VIBETRACK_DEBUG__)), {
       timeout: 10_000
@@ -234,4 +234,19 @@ test("S brake ramps progressively instead of instant lock", async ({ page }) => 
 
   expect(shortBrake.speedKmh).toBeGreaterThan(beforeBrake.speedKmh * 0.35);
   expect(sustainedBrake.speedKmh).toBeLessThan(shortBrake.speedKmh * 0.8);
+});
+
+test("medium quality preset boots and remains drivable", async ({ page }) => {
+  await waitGameReady(page, "/?quality=medium");
+
+  const mediumState = await readDebug(page);
+  expect(mediumState.quality).toBe("medium");
+
+  await holdUntilRunning(page, "w");
+  await page.waitForTimeout(900);
+  const moving = await readDebug(page);
+  await page.keyboard.up("w");
+
+  expect(moving.phase).toBe("running");
+  expect(moving.speedKmh).toBeGreaterThan(3);
 });

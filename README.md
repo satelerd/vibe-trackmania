@@ -26,6 +26,7 @@ pnpm typecheck
 pnpm test
 pnpm test:e2e
 pnpm build
+pnpm build:report
 ```
 
 Primera vez para E2E local:
@@ -44,6 +45,11 @@ Nota: con `Node v20.0.0` Vite muestra advertencia de versión recomendada (`20.1
 - `Space` o botón `B`: handbrake / drift assist
 - `R` o botón `A`: respawn al último checkpoint
 - `Backspace` o botón `Start`: reinicio completo de run
+
+## Calidad gráfica
+
+- Preset default: `high`
+- Preset liviano: abre `/?quality=medium` para reducir costo de render (sombras/pixel ratio/fog)
 
 ## Estructura
 
