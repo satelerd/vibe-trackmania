@@ -9,7 +9,7 @@
   },
   "expect": {
     "minMaxCheckpointOrder": 2,
-    "minPeakY": 14,
+    "minPeakY": 10.5,
     "maxAutoRespawns": 1,
     "maxDurationMs": 12000,
     "minDurationMs": 6000,

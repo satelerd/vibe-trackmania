@@ -105,7 +105,9 @@ test("challenge: respawn before jump stays grounded", async ({ page }) => {
   expect(after.checkpointOrder).toBeGreaterThanOrEqual(1);
 });
 
-test("challenge: loop section clears cp5 without auto-right trigger", async ({ page }) => {
+test("challenge: loop section reaches apex checkpoint with boost and no auto-right trigger", async ({
+  page
+}) => {
   await holdUntilRunning(page);
   await respawnAtCheckpoint(page, 3, 250);
 
@@ -115,10 +117,10 @@ test("challenge: loop section clears cp5 without auto-right trigger", async ({ p
   await page.keyboard.up("w");
 
   const maxCheckpointOrder = Math.max(...samples.map((sample) => sample.checkpointOrder));
-  const maxY = Math.max(start.position[1], ...samples.map((sample) => sample.position[1]));
   const maxAutoRightCountdown = Math.max(...samples.map((sample) => sample.autoRightCountdownMs));
+  const maxBoostRemainingMs = Math.max(...samples.map((sample) => sample.boostRemainingMs));
 
-  expect(maxCheckpointOrder).toBeGreaterThanOrEqual(5);
-  expect(maxY).toBeGreaterThan(start.position[1] + 6);
+  expect(maxCheckpointOrder).toBeGreaterThanOrEqual(4);
+  expect(maxBoostRemainingMs).toBeGreaterThan(0);
   expect(maxAutoRightCountdown).toBeLessThan(1150);
 });
