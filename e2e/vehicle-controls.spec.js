@@ -60,6 +60,18 @@ async function holdUntilRunning(page, key) {
   }
 }
 
+async function collectTelemetryWindow(page, durationMs, intervalMs = 100) {
+  const samples = [];
+  const steps = Math.max(1, Math.ceil(durationMs / intervalMs));
+
+  for (let index = 0; index < steps; index += 1) {
+    await page.waitForTimeout(intervalMs);
+    samples.push(await readDebug(page));
+  }
+
+  return samples;
+}
+
 test.beforeEach(async ({ page }) => {
   await waitGameReady(page);
 });
@@ -249,4 +261,36 @@ test("medium quality preset boots and remains drivable", async ({ page }) => {
 
   expect(moving.phase).toBe("running");
   expect(moving.speedKmh).toBeGreaterThan(3);
+});
+
+test("stunt jump launches and lands when respawning before jump", async ({ page }) => {
+  await holdUntilRunning(page, "w");
+  await page.evaluate(() => window.__VIBETRACK_TEST_API__?.respawnAtCheckpoint(2, 120));
+
+  const start = await readDebug(page);
+  const samples = await collectTelemetryWindow(page, 4200, 120);
+  await page.keyboard.up("w");
+
+  const maxY = Math.max(...samples.map((sample) => sample.position[1]));
+  const maxSpeed = Math.max(...samples.map((sample) => sample.speedKmh));
+  const endY = samples[samples.length - 1].position[1];
+
+  expect(maxY).toBeGreaterThan(start.position[1] + 2.4);
+  expect(endY).toBeLessThan(maxY - 1.4);
+  expect(maxSpeed).toBeGreaterThan(35);
+});
+
+test("stunt loop section climbs with sustained speed", async ({ page }) => {
+  await holdUntilRunning(page, "w");
+  await page.evaluate(() => window.__VIBETRACK_TEST_API__?.respawnAtCheckpoint(3, 205));
+
+  const start = await readDebug(page);
+  const samples = await collectTelemetryWindow(page, 12000, 120);
+  await page.keyboard.up("w");
+
+  const maxY = Math.max(...samples.map((sample) => sample.position[1]));
+  const maxSpeed = Math.max(...samples.map((sample) => sample.speedKmh));
+
+  expect(maxY).toBeGreaterThan(start.position[1] + 8);
+  expect(maxSpeed).toBeGreaterThan(45);
 });
