@@ -162,11 +162,14 @@ export class TrackBuilder {
       Math.max(3, Math.ceil(arcLength / Math.max(0.15, options.stepLength ?? 3.4)));
     const yawStep = yawRadians / steps;
     const segmentLength = arcLength / steps;
-    const bankStep = THREE.MathUtils.degToRad(options.bankDeg ?? 0) / steps;
+    const bankPeak = THREE.MathUtils.degToRad(options.bankDeg ?? 0);
+    const bankSign = Math.sign(bankPeak);
+    const bankStepMagnitude = steps > 1 ? (Math.abs(bankPeak) * 2) / steps : Math.abs(bankPeak);
 
     for (let index = 0; index < steps; index += 1) {
       this.rotateLocal(LOCAL_UP, yawStep * 0.5);
-      if (Math.abs(bankStep) > 0.0000001) {
+      if (bankStepMagnitude > 0.0000001 && bankSign !== 0) {
+        const bankStep = index < steps / 2 ? bankSign * bankStepMagnitude : -bankSign * bankStepMagnitude;
         this.rotateLocal(LOCAL_FORWARD, bankStep);
       }
       this.pushSegment(segmentLength, options);
