@@ -1,4 +1,4 @@
-import { RaceState } from "../types";
+import { RaceState, TraceReplayState } from "../types";
 
 interface HudTelemetry {
   speedKmh: number;
@@ -27,6 +27,7 @@ export class Hud {
   private readonly root = document.createElement("div");
   private readonly timerValue = document.createElement("div");
   private readonly speedValue = document.createElement("div");
+  private readonly traceValue = document.createElement("div");
   private readonly statusValue = document.createElement("div");
   private readonly bestValue = document.createElement("div");
   private readonly checkpointValue = document.createElement("div");
@@ -43,8 +44,9 @@ export class Hud {
 
     this.timerValue.className = "hud-timer";
     this.speedValue.className = "hud-speed";
+    this.traceValue.className = "hud-trace";
 
-    topPanel.append(this.timerValue, this.speedValue);
+    topPanel.append(this.timerValue, this.speedValue, this.traceValue);
 
     const bottomPanel = document.createElement("div");
     bottomPanel.className = "hud-bottom";
@@ -60,14 +62,26 @@ export class Hud {
     const controls = document.createElement("div");
     controls.className = "hud-controls";
     controls.textContent =
-      "W/Up: throttle | S/Down: brake-reverse | A/D or Left/Right: steer | Space/B: handbrake | R/A: respawn | Backspace/Start: restart";
+      "W/Up: throttle | S/Down: brake-reverse | A/D or Left/Right: steer | Space/B: handbrake | R/A: respawn | Backspace/Start: restart | F8: trace rec/replay | F9: download trace";
 
     this.root.append(topPanel, this.centerValue, bottomPanel, controls);
     document.body.append(this.root);
   }
 
-  update(state: RaceState, telemetry: HudTelemetry, autoRightCountdownMs: number): void {
+  update(
+    state: RaceState,
+    telemetry: HudTelemetry,
+    autoRightCountdownMs: number,
+    traceState: TraceReplayState
+  ): void {
     this.speedValue.textContent = `${Math.round(telemetry.speedKmh)} km/h`;
+    const traceLabel =
+      traceState === "recording"
+        ? "rec"
+        : traceState === "replaying"
+          ? "replay"
+          : "idle";
+    this.traceValue.textContent = `Trace: ${traceLabel}`;
 
     if (state.phase === "idle") {
       this.timerValue.textContent = "00:00.000";

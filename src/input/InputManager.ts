@@ -12,7 +12,9 @@ const CONTROL_KEY_CODES = new Set([
   "ArrowRight",
   "Space",
   "KeyR",
-  "Backspace"
+  "Backspace",
+  "F8",
+  "F9"
 ]);
 
 interface GamepadRead {
@@ -42,6 +44,8 @@ export class InputManager {
   private prevRestart = false;
   private respawnQueued = false;
   private restartQueued = false;
+  private traceToggleQueued = false;
+  private traceDownloadQueued = false;
 
   private readonly keydownHandler = (event: KeyboardEvent): void => {
     if (CONTROL_KEY_CODES.has(event.code)) {
@@ -55,6 +59,14 @@ export class InputManager {
 
     if (event.code === "Backspace") {
       this.restartQueued = true;
+    }
+
+    if (event.code === "F8") {
+      this.traceToggleQueued = true;
+    }
+
+    if (event.code === "F9") {
+      this.traceDownloadQueued = true;
     }
   };
 
@@ -129,6 +141,18 @@ export class InputManager {
       input.respawn ||
       input.restart
     );
+  }
+
+  consumeTraceToggle(): boolean {
+    const queued = this.traceToggleQueued;
+    this.traceToggleQueued = false;
+    return queued;
+  }
+
+  consumeTraceDownload(): boolean {
+    const queued = this.traceDownloadQueued;
+    this.traceDownloadQueued = false;
+    return queued;
   }
 
   private readGamepad(): GamepadRead {
