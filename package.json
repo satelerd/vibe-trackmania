@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test -c playwright.config.cjs",
+    "test:challenge": "playwright test -c playwright.config.cjs e2e/track-challenge.spec.js",
     "test:all": "pnpm test && pnpm test:e2e"
   },
   "dependencies": {
