@@ -1,4 +1,5 @@
 export type Vec3 = [number, number, number];
+export type QualityPreset = "high" | "medium";
 
 export type RacePhase = "idle" | "countdown" | "running" | "finished";
 
@@ -90,6 +91,7 @@ export interface VehicleTelemetry {
 export interface DebugSnapshot {
   speedKmh: number;
   phase: RacePhase;
+  quality: QualityPreset;
   position: Vec3;
   forward: Vec3;
   checkpointOrder: number;
@@ -100,4 +102,8 @@ export interface DebugSnapshot {
   slipAngleDeg: number;
   yawRate: number;
   yawAssistTorque: number;
+}
+
+export interface RuntimeOptions {
+  quality: QualityPreset;
 }
