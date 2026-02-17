@@ -72,6 +72,22 @@ test("D key steers vehicle right", async ({ page }) => {
   expect(afterTurn.position[0]).toBeLessThan(beforeTurn.position[0] - 0.02);
 });
 
+test("sustained left curve keeps heading and lateral displacement", async ({ page }) => {
+  const start = await readDebug(page);
+
+  await page.keyboard.down("w");
+  await page.keyboard.down("a");
+  await page.waitForTimeout(2200);
+  const duringCurve = await readDebug(page);
+  await page.keyboard.up("a");
+  await page.keyboard.up("w");
+
+  expect(duringCurve.inputSteer).toBeLessThan(-0.7);
+  expect(duringCurve.steeringAngle).toBeGreaterThan(0.05);
+  expect(duringCurve.forward[0]).toBeGreaterThan(start.forward[0] + 0.08);
+  expect(duringCurve.position[0]).toBeGreaterThan(start.position[0] + 0.35);
+});
+
 test("respawn resets position and speed after movement", async ({ page }) => {
   await page.keyboard.down("w");
   await page.waitForTimeout(2200);
