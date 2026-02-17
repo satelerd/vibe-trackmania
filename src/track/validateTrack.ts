@@ -1,4 +1,4 @@
-import { TrackDefinition, Vec3 } from "../types";
+import { SegmentRailMode, TrackDefinition, Vec3 } from "../types";
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
@@ -7,6 +7,20 @@ const isVec3 = (value: unknown): value is Vec3 =>
   Array.isArray(value) &&
   value.length === 3 &&
   value.every((component) => isFiniteNumber(component));
+
+const VALID_RAIL_MODES: SegmentRailMode[] = ["both", "left", "right", "none"];
+
+const isSegmentRotation = (
+  value: unknown
+): value is { yaw: number; pitch: number; roll: number } =>
+  typeof value === "object" &&
+  value !== null &&
+  isFiniteNumber((value as { yaw?: unknown }).yaw) &&
+  isFiniteNumber((value as { pitch?: unknown }).pitch) &&
+  isFiniteNumber((value as { roll?: unknown }).roll);
+
+const isRailMode = (value: unknown): value is SegmentRailMode =>
+  typeof value === "string" && VALID_RAIL_MODES.includes(value as SegmentRailMode);
 
 export function collectTrackValidationErrors(track: TrackDefinition): string[] {
   const errors: string[] = [];
@@ -51,8 +65,14 @@ export function collectTrackValidationErrors(track: TrackDefinition): string[] {
       errors.push(`segment ${segment.id}: size debe ser Vec3 positivo`);
     }
 
-    if (!isFiniteNumber(segment.yaw)) {
-      errors.push(`segment ${segment.id}: yaw inválido`);
+    if (!isSegmentRotation(segment.rotation)) {
+      errors.push(`segment ${segment.id}: rotation inválida`);
+    }
+
+    if (segment.railMode !== undefined && !isRailMode(segment.railMode)) {
+      errors.push(
+        `segment ${segment.id}: railMode inválido (válidos: ${VALID_RAIL_MODES.join(", ")})`
+      );
     }
   }
 

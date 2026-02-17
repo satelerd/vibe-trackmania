@@ -20,6 +20,15 @@ function vec3ToThree(value: Vec3): THREE.Vector3 {
   return new THREE.Vector3(value[0], value[1], value[2]);
 }
 
+function buildSegmentQuaternion(rotation: {
+  yaw: number;
+  pitch: number;
+  roll: number;
+}): THREE.Quaternion {
+  const euler = new THREE.Euler(rotation.pitch, rotation.yaw, rotation.roll, "YXZ");
+  return new THREE.Quaternion().setFromEuler(euler);
+}
+
 export class TrackRuntime {
   readonly sceneGroup = new THREE.Group();
 
@@ -109,13 +118,14 @@ export class TrackRuntime {
       const [width, height, length] = segment.size;
       const segmentGeometry = new THREE.BoxGeometry(width, height, length);
       const segmentMesh = new THREE.Mesh(segmentGeometry, trackMaterial.clone());
+      const segmentQuaternion = buildSegmentQuaternion(segment.rotation);
 
       if (segment.colorHex !== undefined) {
         (segmentMesh.material as THREE.MeshStandardMaterial).color.setHex(segment.colorHex);
       }
 
       segmentMesh.position.fromArray(segment.position);
-      segmentMesh.rotation.y = segment.yaw;
+      segmentMesh.quaternion.copy(segmentQuaternion);
       segmentMesh.castShadow = true;
       segmentMesh.receiveShadow = true;
       this.sceneGroup.add(segmentMesh);
@@ -127,7 +137,12 @@ export class TrackRuntime {
       )
         .setTranslation(segment.position[0], segment.position[1], segment.position[2])
         .setRotation(
-          new RAPIER.Quaternion(0, Math.sin(segment.yaw / 2), 0, Math.cos(segment.yaw / 2))
+          new RAPIER.Quaternion(
+            segmentQuaternion.x,
+            segmentQuaternion.y,
+            segmentQuaternion.z,
+            segmentQuaternion.w
+          )
         )
         .setFriction(1.8)
         .setRestitution(0.0);
@@ -137,10 +152,13 @@ export class TrackRuntime {
       const edgeHeight = 1.1;
       const edgeThickness = 0.45;
       const edgeDistanceFromCenter = width * 0.5 + edgeThickness * 0.5;
+      const railMode = segment.railMode ?? "both";
+      const edgeSides =
+        railMode === "both" ? [-1, 1] : railMode === "left" ? [-1] : railMode === "right" ? [1] : [];
 
-      for (const side of [-1, 1]) {
+      for (const side of edgeSides) {
         const localOffset = new THREE.Vector3(side * edgeDistanceFromCenter, edgeHeight / 2, 0);
-        localOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), segment.yaw);
+        localOffset.applyQuaternion(segmentQuaternion);
 
         const edgeCenter = vec3ToThree(segment.position)
           .add(localOffset)
@@ -149,7 +167,7 @@ export class TrackRuntime {
         const edgeGeometry = new THREE.BoxGeometry(edgeThickness, edgeHeight, length);
         const edgeMesh = new THREE.Mesh(edgeGeometry, edgeMaterial);
         edgeMesh.position.fromArray(edgeCenter);
-        edgeMesh.rotation.y = segment.yaw;
+        edgeMesh.quaternion.copy(segmentQuaternion);
         this.sceneGroup.add(edgeMesh);
 
         const edgeCollider = RAPIER.ColliderDesc.cuboid(
@@ -160,10 +178,10 @@ export class TrackRuntime {
           .setTranslation(edgeCenter[0], edgeCenter[1], edgeCenter[2])
           .setRotation(
             new RAPIER.Quaternion(
-              0,
-              Math.sin(segment.yaw / 2),
-              0,
-              Math.cos(segment.yaw / 2)
+              segmentQuaternion.x,
+              segmentQuaternion.y,
+              segmentQuaternion.z,
+              segmentQuaternion.w
             )
           )
           .setFriction(0.9)

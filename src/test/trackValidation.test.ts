@@ -24,4 +24,26 @@ describe("track validation", () => {
       errors.some((entry) => entry.includes("checkpoint orders deben ser secuenciales"))
     ).toBe(true);
   });
+
+  it("rejects segments with invalid rotation payload", () => {
+    const track = loadPremiumTrack();
+    track.segments[0] = {
+      ...track.segments[0],
+      rotation: { yaw: Number.NaN, pitch: 0, roll: 0 }
+    };
+
+    const errors = collectTrackValidationErrors(track);
+    expect(errors.some((entry) => entry.includes("rotation inválida"))).toBe(true);
+  });
+
+  it("rejects segments with invalid rail mode", () => {
+    const track = loadPremiumTrack();
+    track.segments[0] = {
+      ...track.segments[0],
+      railMode: "outer" as never
+    };
+
+    const errors = collectTrackValidationErrors(track);
+    expect(errors.some((entry) => entry.includes("railMode inválido"))).toBe(true);
+  });
 });

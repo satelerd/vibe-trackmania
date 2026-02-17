@@ -107,6 +107,7 @@ export class VibeTrackGame {
 
   private readonly workingPosition = new THREE.Vector3();
   private readonly workingForward = new THREE.Vector3();
+  private readonly workingUp = new THREE.Vector3();
   private readonly currentInputState: InputState = {
     throttle: 0,
     brake: 0,
@@ -196,7 +197,8 @@ export class VibeTrackGame {
     const chaseCamera = new ChaseCameraRig(camera);
     chaseCamera.reset(
       vehicle.getPosition(new THREE.Vector3()),
-      vehicle.getForwardVector(new THREE.Vector3())
+      vehicle.getForwardVector(new THREE.Vector3()),
+      vehicle.getUpVector(new THREE.Vector3())
     );
 
     const savedBestMsRaw = window.localStorage.getItem(BEST_LAP_STORAGE_KEY);
@@ -317,10 +319,12 @@ export class VibeTrackGame {
 
     this.vehicle.getPosition(this.workingPosition);
     this.vehicle.getForwardVector(this.workingForward);
+    this.vehicle.getUpVector(this.workingUp);
 
     this.chaseCamera.update(
       this.workingPosition,
       this.workingForward,
+      this.workingUp,
       telemetry.speedKmh,
       deltaSeconds
     );
@@ -475,6 +479,7 @@ export class VibeTrackGame {
         this.workingPosition.z
       ],
       forward: [this.workingForward.x, this.workingForward.y, this.workingForward.z],
+      up: [this.workingUp.x, this.workingUp.y, this.workingUp.z],
       checkpointOrder: raceState.currentCheckpointOrder,
       boostRemainingMs: telemetry.boostRemainingMs,
       inputSteer: this.currentInputState.steer,

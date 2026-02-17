@@ -2,117 +2,281 @@
   "id": "vibetrack-alpha",
   "name": "VibeTrack Alpha Sprint",
   "spawn": {
-    "position": [0, 4, 2],
+    "position": [
+      0,
+      4,
+      2
+    ],
     "yaw": 0
   },
   "segments": [
     {
       "id": "start-straight",
-      "position": [0, 0, 22],
-      "size": [18, 1, 78],
-      "yaw": 0,
-      "colorHex": 2511466
+      "position": [
+        0,
+        0,
+        22
+      ],
+      "size": [
+        18,
+        1,
+        78
+      ],
+      "colorHex": 2511466,
+      "rotation": {
+        "yaw": 0,
+        "pitch": 0,
+        "roll": 0
+      }
     },
     {
       "id": "right-arc-1",
-      "position": [12, 0, 88],
-      "size": [16, 1, 56],
-      "yaw": 0.26,
-      "colorHex": 2841953
+      "position": [
+        12,
+        0,
+        88
+      ],
+      "size": [
+        16,
+        1,
+        56
+      ],
+      "colorHex": 2841953,
+      "rotation": {
+        "yaw": 0.26,
+        "pitch": 0,
+        "roll": 0
+      }
     },
     {
       "id": "right-arc-2",
-      "position": [34, 0, 128],
-      "size": [16, 1, 56],
-      "yaw": 0.58,
-      "colorHex": 3041378
+      "position": [
+        34,
+        0,
+        128
+      ],
+      "size": [
+        16,
+        1,
+        56
+      ],
+      "colorHex": 3041378,
+      "rotation": {
+        "yaw": 0.58,
+        "pitch": 0,
+        "roll": 0
+      }
     },
     {
       "id": "elevated-entry",
-      "position": [57, 4, 146],
-      "size": [16, 1, 48],
-      "yaw": 0.98,
-      "colorHex": 3699318
+      "position": [
+        57,
+        4,
+        146
+      ],
+      "size": [
+        16,
+        1,
+        48
+      ],
+      "colorHex": 3699318,
+      "rotation": {
+        "yaw": 0.98,
+        "pitch": 0,
+        "roll": 0
+      }
     },
     {
       "id": "elevated-straight",
-      "position": [84, 8, 142],
-      "size": [16, 1, 74],
-      "yaw": 1.33,
-      "colorHex": 4422793
+      "position": [
+        84,
+        8,
+        142
+      ],
+      "size": [
+        16,
+        1,
+        74
+      ],
+      "colorHex": 4422793,
+      "rotation": {
+        "yaw": 1.33,
+        "pitch": 0,
+        "roll": 0
+      }
     },
     {
       "id": "drop-turn",
-      "position": [108, 4, 112],
-      "size": [16, 1, 56],
-      "yaw": 2.02,
-      "colorHex": 3963135
+      "position": [
+        108,
+        4,
+        112
+      ],
+      "size": [
+        16,
+        1,
+        56
+      ],
+      "colorHex": 3963135,
+      "rotation": {
+        "yaw": 2.02,
+        "pitch": 0,
+        "roll": 0
+      }
     },
     {
       "id": "home-stretch",
-      "position": [72, 0, 66],
-      "size": [18, 1, 126],
-      "yaw": 3.14,
-      "colorHex": 3040662
+      "position": [
+        72,
+        0,
+        66
+      ],
+      "size": [
+        18,
+        1,
+        126
+      ],
+      "colorHex": 3040662,
+      "rotation": {
+        "yaw": 3.14,
+        "pitch": 0,
+        "roll": 0
+      }
     },
     {
       "id": "finish-approach",
-      "position": [18, 0, 24],
-      "size": [18, 1, 58],
-      "yaw": 3.14,
-      "colorHex": 2445678
+      "position": [
+        18,
+        0,
+        24
+      ],
+      "size": [
+        18,
+        1,
+        58
+      ],
+      "colorHex": 2445678,
+      "rotation": {
+        "yaw": 3.14,
+        "pitch": 0,
+        "roll": 0
+      }
     }
   ],
   "checkpoints": [
     {
       "id": "cp0",
-      "position": [0, 2.5, 36],
-      "size": [16, 5, 8],
+      "position": [
+        0,
+        2.5,
+        36
+      ],
+      "size": [
+        16,
+        5,
+        8
+      ],
       "order": 0
     },
     {
       "id": "cp1",
-      "position": [24, 2.5, 108],
-      "size": [16, 5, 8],
+      "position": [
+        24,
+        2.5,
+        108
+      ],
+      "size": [
+        16,
+        5,
+        8
+      ],
       "order": 1
     },
     {
       "id": "cp2",
-      "position": [66, 10.5, 146],
-      "size": [14, 5, 8],
+      "position": [
+        66,
+        10.5,
+        146
+      ],
+      "size": [
+        14,
+        5,
+        8
+      ],
       "order": 2
     },
     {
       "id": "cp3",
-      "position": [103, 6, 119],
-      "size": [14, 5, 8],
+      "position": [
+        103,
+        6,
+        119
+      ],
+      "size": [
+        14,
+        5,
+        8
+      ],
       "order": 3
     },
     {
       "id": "cp4",
-      "position": [71, 2.5, 70],
-      "size": [16, 5, 8],
+      "position": [
+        71,
+        2.5,
+        70
+      ],
+      "size": [
+        16,
+        5,
+        8
+      ],
       "order": 4
     },
     {
       "id": "cp5",
-      "position": [20, 2.5, 20],
-      "size": [16, 5, 8],
+      "position": [
+        20,
+        2.5,
+        20
+      ],
+      "size": [
+        16,
+        5,
+        8
+      ],
       "order": 5
     }
   ],
   "boostPads": [
     {
       "id": "boost-start",
-      "position": [0, 1.1, 56],
-      "size": [10, 0.4, 10],
+      "position": [
+        0,
+        1.1,
+        56
+      ],
+      "size": [
+        10,
+        0.4,
+        10
+      ],
       "force": 95,
       "durationMs": 780
     },
     {
       "id": "boost-home",
-      "position": [71, 1.1, 88],
-      "size": [10, 0.4, 10],
+      "position": [
+        71,
+        1.1,
+        88
+      ],
+      "size": [
+        10,
+        0.4,
+        10
+      ],
       "force": 120,
       "durationMs": 720
     }
