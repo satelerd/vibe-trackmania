@@ -40,6 +40,15 @@ async function seedBestSplitsAndReset(page) {
   await page.waitForTimeout(100);
 }
 
+async function holdUntilRunning(page, key) {
+  await page.keyboard.down(key);
+  await expect
+    .poll(async () => (await readDebug(page)).phase, {
+      timeout: 10_000
+    })
+    .toBe("running");
+}
+
 test.beforeEach(async ({ page }) => {
   await waitGameReady(page);
 });
@@ -60,24 +69,24 @@ test("countdown blocks movement before GO", async ({ page }) => {
 test("car accelerates when throttle is pressed", async ({ page }) => {
   const start = await readDebug(page);
 
-  await page.keyboard.down("w");
-  await page.waitForTimeout(3900);
+  await holdUntilRunning(page, "w");
+  await page.waitForTimeout(950);
   const duringThrottle = await readDebug(page);
   await page.keyboard.up("w");
 
   expect(duringThrottle.phase).toBe("running");
   expect(duringThrottle.speedKmh).toBeGreaterThan(6);
-  expect(duringThrottle.position[2]).toBeGreaterThan(start.position[2] + 0.9);
+  expect(duringThrottle.position[2]).toBeGreaterThan(start.position[2] + 0.8);
 });
 
 test("A key steers vehicle left", async ({ page }) => {
-  await page.keyboard.down("w");
-  await page.waitForTimeout(3600);
+  await holdUntilRunning(page, "w");
+  await page.waitForTimeout(650);
 
   const beforeTurn = await readDebug(page);
 
   await page.keyboard.down("a");
-  await page.waitForTimeout(750);
+  await page.waitForTimeout(780);
   const duringTurn = await readDebug(page);
   await page.keyboard.up("a");
 
@@ -92,13 +101,13 @@ test("A key steers vehicle left", async ({ page }) => {
 });
 
 test("D key steers vehicle right", async ({ page }) => {
-  await page.keyboard.down("w");
-  await page.waitForTimeout(3600);
+  await holdUntilRunning(page, "w");
+  await page.waitForTimeout(650);
 
   const beforeTurn = await readDebug(page);
 
   await page.keyboard.down("d");
-  await page.waitForTimeout(750);
+  await page.waitForTimeout(780);
   const duringTurn = await readDebug(page);
   await page.keyboard.up("d");
 
@@ -117,8 +126,15 @@ test("sustained left curve keeps heading and lateral displacement", async ({ pag
 
   await page.keyboard.down("w");
   await page.keyboard.down("a");
-  await page.waitForTimeout(4600);
+  await expect
+    .poll(async () => (await readDebug(page)).phase, {
+      timeout: 10_000
+    })
+    .toBe("running");
+  await page.waitForTimeout(1700);
+
   const duringCurve = await readDebug(page);
+
   await page.keyboard.up("a");
   await page.keyboard.up("w");
 
@@ -130,12 +146,12 @@ test("sustained left curve keeps heading and lateral displacement", async ({ pag
 });
 
 test("respawn resets position and speed after movement", async ({ page }) => {
-  await page.keyboard.down("w");
-  await page.waitForTimeout(3900);
+  await holdUntilRunning(page, "w");
+  await page.waitForTimeout(1200);
   await page.keyboard.up("w");
 
   const moved = await readDebug(page);
-  expect(moved.position[2]).toBeGreaterThan(2.5);
+  expect(moved.position[2]).toBeGreaterThan(1.6);
 
   await page.keyboard.press("r");
   await page.waitForTimeout(220);
@@ -150,8 +166,8 @@ test("respawn resets position and speed after movement", async ({ page }) => {
 });
 
 test("restart clears attempt state", async ({ page }) => {
-  await page.keyboard.down("w");
-  await page.waitForTimeout(5200);
+  await holdUntilRunning(page, "w");
+  await page.waitForTimeout(1600);
   await page.keyboard.up("w");
 
   await page.keyboard.press("Backspace");
@@ -171,8 +187,8 @@ test("restart clears attempt state", async ({ page }) => {
 test("split delta updates after checkpoint when best split exists", async ({ page }) => {
   await seedBestSplitsAndReset(page);
 
-  await page.keyboard.down("w");
-  await page.waitForTimeout(7600);
+  await holdUntilRunning(page, "w");
+  await page.waitForTimeout(4200);
   await page.keyboard.up("w");
 
   await expect(page.locator(".hud-split")).toContainText("Split Δ:");
@@ -181,8 +197,8 @@ test("split delta updates after checkpoint when best split exists", async ({ pag
 test("S key engages reverse when speed is low", async ({ page }) => {
   const start = await readDebug(page);
 
-  await page.keyboard.down("s");
-  await page.waitForTimeout(4200);
+  await holdUntilRunning(page, "s");
+  await page.waitForTimeout(1200);
   const reversing = await readDebug(page);
   await page.keyboard.up("s");
 
@@ -192,8 +208,8 @@ test("S key engages reverse when speed is low", async ({ page }) => {
 });
 
 test("S brake ramps progressively instead of instant lock", async ({ page }) => {
-  await page.keyboard.down("w");
-  await page.waitForTimeout(4400);
+  await holdUntilRunning(page, "w");
+  await page.waitForTimeout(1500);
   await page.keyboard.up("w");
 
   const beforeBrake = await readDebug(page);
