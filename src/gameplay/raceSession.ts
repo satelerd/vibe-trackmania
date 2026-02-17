@@ -69,6 +69,8 @@ export class RaceSession {
   }
 
   update(deltaMs: number, startIntent: boolean): void {
+    let startedRunningThisTick = false;
+
     if (this.phase === "idle" && startIntent) {
       this.phase = "countdown";
       this.countdownRemainingMs = 3000;
@@ -80,6 +82,7 @@ export class RaceSession {
         this.phase = "running";
         this.elapsedMs = 0;
         this.goFlashRemainingMs = 650;
+        startedRunningThisTick = true;
       }
     }
 
@@ -87,7 +90,7 @@ export class RaceSession {
       this.elapsedMs += deltaMs;
     }
 
-    if (this.goFlashRemainingMs > 0) {
+    if (this.goFlashRemainingMs > 0 && !startedRunningThisTick) {
       this.goFlashRemainingMs = Math.max(0, this.goFlashRemainingMs - deltaMs);
     }
   }
