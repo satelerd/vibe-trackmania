@@ -3,5 +3,6 @@ import { TrackDefinition } from "../types";
 import { validateTrackDefinition } from "./validateTrack";
 
 export function loadPremiumTrack(): TrackDefinition {
-  return validateTrackDefinition(rawPremiumTrack as TrackDefinition);
+  const clonedTrack = JSON.parse(JSON.stringify(rawPremiumTrack)) as TrackDefinition;
+  return validateTrackDefinition(clonedTrack);
 }
