@@ -18,13 +18,13 @@ const BEST_LAP_STORAGE_KEY = "vibetrack.bestLapMs";
 const DEFAULT_TUNING: VehicleTuning = {
   massKg: 1200,
   maxSpeedKmh: 315,
-  engineForce: 158,
-  brakeForce: 62,
+  engineForce: 4200,
+  brakeForce: 240,
   steerRate: 0.53,
   suspensionRest: 0.35,
-  suspensionSpring: 36,
-  suspensionDamper: 3.9,
-  tireGrip: 2.3,
+  suspensionSpring: 42,
+  suspensionDamper: 4.2,
+  tireGrip: 3.2,
   driftGripFactorRear: 0.54,
   airControlTorque: 13
 };
