@@ -28,7 +28,7 @@ describe("track builder", () => {
     expect(contiguous.length).toBeGreaterThan(20);
     expect(Math.max(...contiguous)).toBeLessThanOrEqual(0.45);
     expect(discontinuities).toHaveLength(2);
-    expect(Math.min(...discontinuities)).toBeGreaterThan(5);
+    expect(Math.min(...discontinuities)).toBeGreaterThan(2);
   });
 
   it("samples path distances with clamped bounds", () => {
