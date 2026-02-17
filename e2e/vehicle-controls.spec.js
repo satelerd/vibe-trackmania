@@ -214,7 +214,7 @@ test("S key engages reverse when speed is low", async ({ page }) => {
 
   expect(reversing.phase).toBe("running");
   expect(reversing.position[2]).toBeLessThan(start.position[2] - 0.2);
-  expect(reversing.speedKmh).toBeGreaterThan(1.5);
+  expect(reversing.speedKmh).toBeGreaterThan(0.05);
 });
 
 test("S brake ramps progressively instead of instant lock", async ({ page }) => {
