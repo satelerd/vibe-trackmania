@@ -19,6 +19,16 @@ interface WheelRuntime {
 const WHEEL_RADIUS = 0.43;
 const CHASSIS_HALF_EXTENTS = { x: 1.03, y: 0.4, z: 2.15 } as const;
 const CHASSIS_LOCAL_TRANSLATION = { x: 0, y: -0.2, z: 0 } as const;
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
+const FLY_BASE_THRUST_MULTIPLIER = 1.45;
+const FLY_BASE_LIFT_MULTIPLIER = 1.28;
+const FLY_CLIMB_FORCE_MULTIPLIER = 2.95;
+const FLY_STRAFE_FORCE_MULTIPLIER = 0.45;
+const FLY_MAX_SPEED_MULTIPLIER = 1.32;
+const FLY_MAX_SPEED_TURBO_MULTIPLIER = 1.88;
+const FLY_TURBO_FORCE_MULTIPLIER = 1.75;
+const FLY_DRAG_COEFFICIENT = 0.55;
+const FLY_DRAG_COEFFICIENT_TURBO = 0.28;
 
 export class VehicleController {
   readonly sceneGroup = new THREE.Group();
@@ -37,13 +47,29 @@ export class VehicleController {
   private slipAngleDeg = 0;
   private yawRate = 0;
   private yawAssistTorque = 0;
+  private flyModeEnabled = false;
+  private flightTurboEnabled = false;
+  private flightPulseSeconds = 0;
 
   private readonly forwardVector = new THREE.Vector3(0, 0, 1);
   private readonly upVector = new THREE.Vector3(0, 1, 0);
   private readonly workingQuaternion = new THREE.Quaternion();
   private readonly workingUpVector = new THREE.Vector3();
   private readonly workingForwardVector = new THREE.Vector3();
+  private readonly workingRightVector = new THREE.Vector3();
+  private readonly workingLinearVelocity = new THREE.Vector3();
+  private readonly workingAngularVelocity = new THREE.Vector3();
   private readonly workingVector2 = new THREE.Vector2();
+  private readonly bodyMaterial = new THREE.MeshStandardMaterial({
+    color: "#ff5d2f",
+    metalness: 0.42,
+    roughness: 0.31
+  });
+  private readonly cockpitMaterial = new THREE.MeshStandardMaterial({
+    color: "#b7d9f0",
+    metalness: 0.8,
+    roughness: 0.12
+  });
 
   constructor(
     private readonly world: RapierWorld,
@@ -107,6 +133,11 @@ export class VehicleController {
   }
 
   preStep(input: InputState, deltaSeconds: number): void {
+    if (this.flyModeEnabled) {
+      this.preStepFlight(input, deltaSeconds);
+      return;
+    }
+
     const speedKmh = Math.abs(this.speedMs) * 3.6;
     const steerRate = computeSteerRate(speedKmh, this.tuning);
     const steeringInput = -input.steer;
@@ -216,11 +247,15 @@ export class VehicleController {
   }
 
   postStep(deltaSeconds: number): void {
-    this.grounded = false;
-    for (let wheelIndex = 0; wheelIndex < this.vehicle.numWheels(); wheelIndex += 1) {
-      if (this.vehicle.wheelIsInContact(wheelIndex)) {
-        this.grounded = true;
-        break;
+    if (this.flyModeEnabled) {
+      this.grounded = false;
+    } else {
+      this.grounded = false;
+      for (let wheelIndex = 0; wheelIndex < this.vehicle.numWheels(); wheelIndex += 1) {
+        if (this.vehicle.wheelIsInContact(wheelIndex)) {
+          this.grounded = true;
+          break;
+        }
       }
     }
 
@@ -228,9 +263,14 @@ export class VehicleController {
     this.workingVector2.set(bodyVelocity.x, bodyVelocity.z);
 
     const horizontalSpeed = this.workingVector2.length();
-    this.speedMs = this.vehicle.currentVehicleSpeed();
+    this.speedMs = this.flyModeEnabled ? horizontalSpeed : this.vehicle.currentVehicleSpeed();
 
-    const maxSpeedMs = this.tuning.maxSpeedKmh / 3.6;
+    const maxSpeedMultiplier = this.flyModeEnabled
+      ? this.flightTurboEnabled
+        ? FLY_MAX_SPEED_TURBO_MULTIPLIER
+        : FLY_MAX_SPEED_MULTIPLIER
+      : 1;
+    const maxSpeedMs = (this.tuning.maxSpeedKmh * maxSpeedMultiplier) / 3.6;
     if (horizontalSpeed > maxSpeedMs) {
       this.workingVector2.setLength(maxSpeedMs);
       this.body.setLinvel(
@@ -330,8 +370,30 @@ export class VehicleController {
     return {
       speedKmh: Math.abs(this.speedMs) * 3.6,
       isGrounded: this.grounded,
-      boostRemainingMs: this.boostRemainingMs
+      boostRemainingMs: this.boostRemainingMs,
+      flyModeEnabled: this.flyModeEnabled,
+      flightTurboEnabled: this.flightTurboEnabled
     };
+  }
+
+  setFlyMode(enabled: boolean): void {
+    this.flyModeEnabled = enabled;
+    this.flightTurboEnabled = false;
+    this.appliedBrakeForce = 0;
+    this.steeringAngle = 0;
+    this.flightPulseSeconds = 0;
+    this.yawAssistTorque = 0;
+    if (enabled) {
+      this.body.applyImpulse({ x: 0, y: 9.5, z: 0 }, true);
+    }
+  }
+
+  isFlyModeEnabled(): boolean {
+    return this.flyModeEnabled;
+  }
+
+  setFlightTurbo(enabled: boolean): void {
+    this.flightTurboEnabled = this.flyModeEnabled && enabled;
   }
 
   setForwardSpeedKmh(speedKmh: number): void {
@@ -398,11 +460,7 @@ export class VehicleController {
   private setupVehicleVisual(): void {
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(2.2, 0.9, 4.4),
-      new THREE.MeshStandardMaterial({
-        color: "#ff5d2f",
-        metalness: 0.42,
-        roughness: 0.31
-      })
+      this.bodyMaterial
     );
     body.position.y = 0.06;
     body.castShadow = true;
@@ -410,11 +468,7 @@ export class VehicleController {
 
     const cockpit = new THREE.Mesh(
       new THREE.BoxGeometry(1.45, 0.45, 1.7),
-      new THREE.MeshStandardMaterial({
-        color: "#b7d9f0",
-        metalness: 0.8,
-        roughness: 0.12
-      })
+      this.cockpitMaterial
     );
     cockpit.position.set(0, 0.52, -0.1);
     this.sceneGroup.add(cockpit);
@@ -477,5 +531,136 @@ export class VehicleController {
 
       wheel.mesh.rotation.x += wheelRotationDelta;
     });
+
+    if (this.flyModeEnabled) {
+      const pulse = 0.4 + (Math.sin(this.flightPulseSeconds * 5.5) + 1) * 0.25;
+      const turboBoost = this.flightTurboEnabled ? 0.42 : 0;
+      this.bodyMaterial.emissive.setHex(0x1e6dff);
+      this.cockpitMaterial.emissive.setHex(0x4ec5ff);
+      this.bodyMaterial.emissiveIntensity = pulse + turboBoost;
+      this.cockpitMaterial.emissiveIntensity = pulse * 0.8 + turboBoost * 0.8;
+      return;
+    }
+
+    this.bodyMaterial.emissiveIntensity = 0;
+    this.cockpitMaterial.emissiveIntensity = 0;
+  }
+
+  private preStepFlight(input: InputState, deltaSeconds: number): void {
+    this.appliedBrakeForce = 0;
+    this.yawAssistTorque = 0;
+    this.flightPulseSeconds += deltaSeconds;
+
+    this.getForwardVector(this.workingForwardVector);
+    this.getUpVector(this.workingUpVector);
+    this.workingRightVector
+      .crossVectors(this.workingForwardVector, this.workingUpVector)
+      .normalize();
+
+    const linvel = this.body.linvel();
+    this.workingLinearVelocity.set(linvel.x, linvel.y, linvel.z);
+    const speedKmh = this.workingLinearVelocity.length() * 3.6;
+
+    const steeringInput = -input.steer;
+    const steerRate = computeSteerRate(speedKmh, this.tuning);
+    this.steeringAngle = steeringInput * steerRate;
+
+    for (let wheelIndex = 0; wheelIndex < this.vehicle.numWheels(); wheelIndex += 1) {
+      this.configureWheelControl(wheelIndex, 0, 0, 0, 0.65);
+    }
+
+    const turboForceScale = this.flightTurboEnabled ? FLY_TURBO_FORCE_MULTIPLIER : 1;
+    const cruiseThrottle = Math.max(0.3, input.throttle);
+    const forwardForce =
+      this.tuning.engineForce *
+      FLY_BASE_THRUST_MULTIPLIER *
+      turboForceScale *
+      (cruiseThrottle - input.brake * 0.46);
+    const altitude = this.body.translation().y;
+    const takeoffAssist = altitude < 3.2 ? this.tuning.massKg * 20 : 0;
+    const hoverForce = this.tuning.massKg * 9.81 * FLY_BASE_LIFT_MULTIPLIER + takeoffAssist;
+    const climbInput = (input.handbrake ? 1 : 0) - input.brake * 0.35;
+    const climbForce =
+      this.tuning.engineForce * FLY_CLIMB_FORCE_MULTIPLIER * climbInput * turboForceScale;
+    const strafeForce = this.tuning.engineForce * FLY_STRAFE_FORCE_MULTIPLIER * steeringInput;
+    const pulseLift = Math.sin(this.flightPulseSeconds * 6.5) * 220;
+
+    this.body.applyImpulse(
+      {
+        x:
+          (this.workingForwardVector.x * forwardForce +
+            this.workingRightVector.x * strafeForce +
+            WORLD_UP.x * (hoverForce + climbForce + pulseLift)) *
+          deltaSeconds,
+        y:
+          (this.workingForwardVector.y * forwardForce +
+            this.workingRightVector.y * strafeForce +
+            WORLD_UP.y * (hoverForce + climbForce + pulseLift)) *
+          deltaSeconds,
+        z:
+          (this.workingForwardVector.z * forwardForce +
+            this.workingRightVector.z * strafeForce +
+            WORLD_UP.z * (hoverForce + climbForce + pulseLift)) *
+          deltaSeconds
+      },
+      true
+    );
+
+    const yawTorque = steeringInput * 28 * turboForceScale;
+    const pitchTorque = (input.throttle - input.brake * 0.65) * 17 + (input.handbrake ? 6 : 0);
+    const rollTorque = -steeringInput * 21;
+
+    this.body.applyTorqueImpulse(
+      {
+        x:
+          (this.workingRightVector.x * pitchTorque +
+            WORLD_UP.x * yawTorque +
+            this.workingForwardVector.x * rollTorque) *
+          deltaSeconds,
+        y:
+          (this.workingRightVector.y * pitchTorque +
+            WORLD_UP.y * yawTorque +
+            this.workingForwardVector.y * rollTorque) *
+          deltaSeconds,
+        z:
+          (this.workingRightVector.z * pitchTorque +
+            WORLD_UP.z * yawTorque +
+            this.workingForwardVector.z * rollTorque) *
+          deltaSeconds
+      },
+      true
+    );
+
+    const postImpulseVelocity = this.body.linvel();
+    this.workingLinearVelocity.set(postImpulseVelocity.x, postImpulseVelocity.y, postImpulseVelocity.z);
+    const dragCoefficient = this.flightTurboEnabled ? FLY_DRAG_COEFFICIENT_TURBO : FLY_DRAG_COEFFICIENT;
+    const drag = Math.exp(-dragCoefficient * deltaSeconds);
+    this.body.setLinvel(
+      {
+        x: this.workingLinearVelocity.x * drag,
+        y: this.workingLinearVelocity.y * Math.exp(-0.22 * deltaSeconds),
+        z: this.workingLinearVelocity.z * drag
+      },
+      true
+    );
+
+    const angvel = this.body.angvel();
+    this.workingAngularVelocity.set(angvel.x, angvel.y, angvel.z).multiplyScalar(0.985);
+    this.body.setAngvel(
+      {
+        x: this.workingAngularVelocity.x,
+        y: this.workingAngularVelocity.y,
+        z: this.workingAngularVelocity.z
+      },
+      true
+    );
+
+    this.applyBoostImpulse(deltaSeconds);
+
+    this.slipAngleDeg = computeSlipAngleDeg(
+      { x: this.workingForwardVector.x, z: this.workingForwardVector.z },
+      { x: this.workingLinearVelocity.x, z: this.workingLinearVelocity.z }
+    );
+    this.yawRate = this.body.angvel().y;
   }
 }

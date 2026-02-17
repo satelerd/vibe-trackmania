@@ -3,6 +3,8 @@ import { RaceState, TraceReplayState } from "../types";
 interface HudTelemetry {
   speedKmh: number;
   boostRemainingMs: number;
+  flyModeEnabled: boolean;
+  flightTurboEnabled: boolean;
 }
 
 function formatDelta(ms: number): string {
@@ -62,7 +64,7 @@ export class Hud {
     const controls = document.createElement("div");
     controls.className = "hud-controls";
     controls.textContent =
-      "W/Up: throttle | S/Down: brake-reverse | A/D or Left/Right: steer | Space/B: handbrake | R/A: respawn | Backspace/Start: restart | F8: trace rec/replay | F9: download trace";
+      "W/Up: throttle | S/Down: brake-reverse | A/D or Left/Right: steer | Space/B: handbrake (fly: climb) | F: toggle fly mode | Shift: fly turbo | R/A: respawn | Backspace/Start: restart | F8: trace rec/replay | F9: download trace";
 
     this.root.append(topPanel, this.centerValue, bottomPanel, controls);
     document.body.append(this.root);
@@ -93,11 +95,13 @@ export class Hud {
       this.timerValue.textContent = formatLapTime(state.elapsedMs);
       const boostText =
         telemetry.boostRemainingMs > 0 ? ` | BOOST ${(telemetry.boostRemainingMs / 1000).toFixed(2)}s` : "";
+      const flyText = telemetry.flyModeEnabled ? " | FLY MODE" : "";
+      const turboText = telemetry.flightTurboEnabled ? " | TURBO" : "";
       const autoRightText =
         autoRightCountdownMs > 0
           ? ` | AUTO-RIGHT ${(autoRightCountdownMs / 1000).toFixed(2)}s`
           : "";
-      this.statusValue.textContent = `Racing${boostText}${autoRightText}`;
+      this.statusValue.textContent = `Racing${boostText}${flyText}${turboText}${autoRightText}`;
     } else {
       this.timerValue.textContent = formatLapTime(state.elapsedMs);
       this.statusValue.textContent = "Finish! Hit restart for another run";

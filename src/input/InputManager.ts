@@ -6,10 +6,13 @@ const CONTROL_KEY_CODES = new Set([
   "KeyA",
   "KeyS",
   "KeyD",
+  "KeyF",
   "ArrowUp",
   "ArrowDown",
   "ArrowLeft",
   "ArrowRight",
+  "ShiftLeft",
+  "ShiftRight",
   "Space",
   "KeyR",
   "Backspace",
@@ -24,6 +27,7 @@ interface GamepadRead {
   handbrake: boolean;
   respawn: boolean;
   restart: boolean;
+  turbo: boolean;
 }
 
 function withDeadZone(value: number): number {
@@ -46,6 +50,8 @@ export class InputManager {
   private restartQueued = false;
   private traceToggleQueued = false;
   private traceDownloadQueued = false;
+  private flyToggleQueued = false;
+  private turboHeld = false;
 
   private readonly keydownHandler = (event: KeyboardEvent): void => {
     if (CONTROL_KEY_CODES.has(event.code)) {
@@ -67,6 +73,10 @@ export class InputManager {
 
     if (event.code === "F9") {
       this.traceDownloadQueued = true;
+    }
+
+    if (event.code === "KeyF") {
+      this.flyToggleQueued = true;
     }
   };
 
@@ -109,6 +119,8 @@ export class InputManager {
     const steer = Math.max(-1, Math.min(1, keyboardSteer + gamepad.steer));
 
     const handbrake = this.keysDown.has("Space") || gamepad.handbrake;
+    const keyboardTurbo = this.keysDown.has("ShiftLeft") || this.keysDown.has("ShiftRight");
+    this.turboHeld = keyboardTurbo || gamepad.turbo;
 
     const respawnHeld = gamepad.respawn;
     const restartHeld = gamepad.restart;
@@ -155,6 +167,16 @@ export class InputManager {
     return queued;
   }
 
+  consumeFlyToggle(): boolean {
+    const queued = this.flyToggleQueued;
+    this.flyToggleQueued = false;
+    return queued;
+  }
+
+  isTurboHeld(): boolean {
+    return this.turboHeld;
+  }
+
   private readGamepad(): GamepadRead {
     if (typeof navigator === "undefined" || !navigator.getGamepads) {
       return {
@@ -163,7 +185,8 @@ export class InputManager {
         steer: 0,
         handbrake: false,
         respawn: false,
-        restart: false
+        restart: false,
+        turbo: false
       };
     }
 
@@ -175,7 +198,8 @@ export class InputManager {
         steer: 0,
         handbrake: false,
         respawn: false,
-        restart: false
+        restart: false,
+        turbo: false
       };
     }
 
@@ -189,7 +213,8 @@ export class InputManager {
       steer,
       handbrake: Boolean(pad.buttons[1]?.pressed),
       respawn: Boolean(pad.buttons[0]?.pressed),
-      restart: Boolean(pad.buttons[9]?.pressed)
+      restart: Boolean(pad.buttons[9]?.pressed),
+      turbo: Boolean(pad.buttons[5]?.pressed || pad.buttons[4]?.pressed)
     };
   }
 }
