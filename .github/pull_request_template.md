@@ -19,6 +19,7 @@
 - [ ] `pnpm typecheck` pasa
 - [ ] `pnpm test` pasa
 - [ ] `pnpm build` pasa
+- [ ] `pnpm test:e2e` pasa
 - [ ] Respawn/restart verificados manualmente
 - [ ] Controles teclado + gamepad verificados
 - [ ] No se agregaron assets con licencia riesgosa
