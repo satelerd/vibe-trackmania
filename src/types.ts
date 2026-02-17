@@ -12,6 +12,39 @@ export interface InputState {
   restart: boolean;
 }
 
+export interface InputTraceFrame {
+  tick: number;
+  input: InputState;
+  position: Vec3;
+  speedKmh: number;
+  checkpointOrder: number;
+}
+
+export interface InputTrace {
+  version: 1;
+  label: string;
+  trackId: string;
+  fixedStepHz: number;
+  frames: InputTraceFrame[];
+}
+
+export interface TraceReplayOptions {
+  startCheckpointOrder?: number;
+  initialSpeedKmh?: number;
+  restartBeforePlay?: boolean;
+}
+
+export interface TraceReplayResult {
+  finished: boolean;
+  maxCheckpointOrder: number;
+  peakY: number;
+  maxSpeedKmh: number;
+  autoRespawns: number;
+  durationMs: number;
+}
+
+export type TraceReplayState = "idle" | "recording" | "replaying";
+
 export interface VehicleTuning {
   massKg: number;
   maxSpeedKmh: number;

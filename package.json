@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test -c playwright.config.cjs",
+    "test:trace": "node scripts/run-trace-profile.cjs",
     "test:all": "pnpm test && pnpm test:e2e"
   },
   "dependencies": {
