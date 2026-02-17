@@ -7,7 +7,7 @@ VibeTrack es un Trackmania-like web-first construido con Vite + TypeScript + Thr
 - Modo: Time Attack solo
 - Inputs: teclado + gamepad
 - Cámara: third-person chase
-- Features activas: checkpoints secuenciales, boost pads, respawn, restart, countdown, HUD, audio sintético
+- Features activas: checkpoints secuenciales, boost pads, respawn, restart, countdown, HUD, audio sintético, best lap persistente en `localStorage`
 
 ## Stack
 
@@ -26,6 +26,8 @@ pnpm typecheck
 pnpm test
 pnpm build
 ```
+
+Nota: con `Node v20.0.0` Vite muestra advertencia de versión recomendada (`20.19+`), pero en este entorno build/test están pasando.
 
 ## Controles
 
