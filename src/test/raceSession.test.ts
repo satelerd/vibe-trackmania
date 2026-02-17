@@ -52,4 +52,22 @@ describe("race session", () => {
     expect(splitState.lastSplitMs).toBeGreaterThan(5_000);
     expect(splitState.lastSplitDeltaMs).toBeGreaterThan(0);
   });
+
+  it("exposes countdown and go flash timers in race state", () => {
+    const session = new RaceSession(2);
+
+    session.update(100, true);
+    const countdownState = session.getState(0);
+    expect(countdownState.phase).toBe("countdown");
+    expect(countdownState.countdownRemainingMs).toBeLessThan(3000);
+    expect(countdownState.goFlashRemainingMs).toBe(0);
+
+    session.update(4000, false);
+    const runningState = session.getState(0);
+    expect(runningState.phase).toBe("running");
+    expect(runningState.goFlashRemainingMs).toBeGreaterThan(0);
+
+    session.update(1000, false);
+    expect(session.getState(0).goFlashRemainingMs).toBe(0);
+  });
 });

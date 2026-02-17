@@ -33,6 +33,7 @@ export class RaceSession {
   private bestMs: number | null;
   private currentCheckpointOrder = 0;
   private countdownRemainingMs = 3000;
+  private goFlashRemainingMs = 0;
   private lastSplitMs: number | null = null;
   private lastSplitDeltaMs: number | null = null;
   private readonly bestSplitsMs: Array<number | null>;
@@ -63,7 +64,13 @@ export class RaceSession {
     return this.countdownRemainingMs;
   }
 
+  getPhase(): RacePhase {
+    return this.phase;
+  }
+
   update(deltaMs: number, startIntent: boolean): void {
+    let startedRunningThisTick = false;
+
     if (this.phase === "idle" && startIntent) {
       this.phase = "countdown";
       this.countdownRemainingMs = 3000;
@@ -74,11 +81,17 @@ export class RaceSession {
       if (this.countdownRemainingMs === 0) {
         this.phase = "running";
         this.elapsedMs = 0;
+        this.goFlashRemainingMs = 650;
+        startedRunningThisTick = true;
       }
     }
 
     if (this.phase === "running") {
       this.elapsedMs += deltaMs;
+    }
+
+    if (this.goFlashRemainingMs > 0 && !startedRunningThisTick) {
+      this.goFlashRemainingMs = Math.max(0, this.goFlashRemainingMs - deltaMs);
     }
   }
 
@@ -129,6 +142,7 @@ export class RaceSession {
     this.elapsedMs = 0;
     this.currentCheckpointOrder = 0;
     this.countdownRemainingMs = 3000;
+    this.goFlashRemainingMs = 0;
     this.lastSplitMs = null;
     this.lastSplitDeltaMs = null;
     this.currentSplitsMs = new Array(this.totalCheckpoints).fill(null);
@@ -154,7 +168,9 @@ export class RaceSession {
       currentCheckpointOrder: this.currentCheckpointOrder,
       speedKmh,
       lastSplitMs: this.lastSplitMs,
-      lastSplitDeltaMs: this.lastSplitDeltaMs
+      lastSplitDeltaMs: this.lastSplitDeltaMs,
+      countdownRemainingMs: this.phase === "countdown" ? this.countdownRemainingMs : 0,
+      goFlashRemainingMs: this.goFlashRemainingMs
     };
   }
 }

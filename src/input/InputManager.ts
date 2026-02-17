@@ -1,6 +1,19 @@
 import { InputState } from "../types";
 
 const DEAD_ZONE = 0.16;
+const CONTROL_KEY_CODES = new Set([
+  "KeyW",
+  "KeyA",
+  "KeyS",
+  "KeyD",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "Space",
+  "KeyR",
+  "Backspace"
+]);
 
 interface GamepadRead {
   throttle: number;
@@ -27,12 +40,28 @@ export class InputManager {
   private readonly keysDown = new Set<string>();
   private prevRespawn = false;
   private prevRestart = false;
+  private respawnQueued = false;
+  private restartQueued = false;
 
   private readonly keydownHandler = (event: KeyboardEvent): void => {
+    if (CONTROL_KEY_CODES.has(event.code)) {
+      event.preventDefault();
+    }
     this.keysDown.add(event.code);
+
+    if (event.code === "KeyR") {
+      this.respawnQueued = true;
+    }
+
+    if (event.code === "Backspace") {
+      this.restartQueued = true;
+    }
   };
 
   private readonly keyupHandler = (event: KeyboardEvent): void => {
+    if (CONTROL_KEY_CODES.has(event.code)) {
+      event.preventDefault();
+    }
     this.keysDown.delete(event.code);
   };
 
@@ -69,11 +98,14 @@ export class InputManager {
 
     const handbrake = this.keysDown.has("Space") || gamepad.handbrake;
 
-    const respawnHeld = this.keysDown.has("KeyR") || gamepad.respawn;
-    const restartHeld = this.keysDown.has("Backspace") || gamepad.restart;
+    const respawnHeld = gamepad.respawn;
+    const restartHeld = gamepad.restart;
 
-    const respawn = respawnHeld && !this.prevRespawn;
-    const restart = restartHeld && !this.prevRestart;
+    const respawn = this.respawnQueued || (respawnHeld && !this.prevRespawn);
+    const restart = this.restartQueued || (restartHeld && !this.prevRestart);
+
+    this.respawnQueued = false;
+    this.restartQueued = false;
 
     this.prevRespawn = respawnHeld;
     this.prevRestart = restartHeld;

@@ -72,6 +72,8 @@ export interface RaceState {
   speedKmh: number;
   lastSplitMs: number | null;
   lastSplitDeltaMs: number | null;
+  countdownRemainingMs: number;
+  goFlashRemainingMs: number;
 }
 
 export interface RespawnPose {

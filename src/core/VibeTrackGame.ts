@@ -22,6 +22,7 @@ const FIXED_STEP_SECONDS = 1 / 120;
 const BEST_LAP_STORAGE_KEY = "vibetrack.bestLapMs";
 const BEST_SPLITS_STORAGE_KEY = "vibetrack.bestSplitsMs";
 const AUTO_RIGHT_TRIGGER_MS = 1200;
+const ACTION_FREEZE_MS = 30;
 
 declare global {
   interface Window {
@@ -99,6 +100,14 @@ export class VibeTrackGame {
     respawn: false,
     restart: false
   };
+  private readonly simulationInputState: InputState = {
+    throttle: 0,
+    brake: 0,
+    steer: 0,
+    handbrake: false,
+    respawn: false,
+    restart: false
+  };
 
   private activeCheckpointOrders = new Set<number>();
   private activeBoostIds = new Set<string>();
@@ -106,6 +115,7 @@ export class VibeTrackGame {
   private lastCheckpointOrder = -1;
   private lastPhase: RaceState["phase"] = "idle";
   private autoRightCountdownMs = 0;
+  private freezeRemainingMs = 0;
 
   private running = false;
   private rafId: number | null = null;
@@ -266,8 +276,15 @@ export class VibeTrackGame {
     }
 
     this.fixedStepRunner.step(deltaSeconds, (fixedDelta) => {
+      if (this.freezeRemainingMs > 0) {
+        return;
+      }
       this.simulate(fixedDelta, inputState);
     });
+
+    if (this.freezeRemainingMs > 0) {
+      this.freezeRemainingMs = Math.max(0, this.freezeRemainingMs - deltaSeconds * 1000);
+    }
 
     const telemetry = this.vehicle.getTelemetry();
     const raceState = this.raceSession.getState(telemetry.speedKmh);
@@ -285,16 +302,11 @@ export class VibeTrackGame {
 
     this.audio.update(
       telemetry.speedKmh,
-      inputState.throttle,
+      raceState.phase === "running" ? inputState.throttle : 0,
       telemetry.boostRemainingMs > 0
     );
 
-    this.hud.update(
-      raceState,
-      telemetry,
-      this.raceSession.getCountdownRemainingMs(),
-      this.autoRightCountdownMs
-    );
+    this.hud.update(raceState, telemetry, this.autoRightCountdownMs);
     this.publishDebugState(raceState, telemetry);
 
     this.renderer.render(this.scene, this.camera);
@@ -307,7 +319,7 @@ export class VibeTrackGame {
       inputState.throttle > 0.04 || inputState.brake > 0.04
     );
 
-    this.vehicle.preStep(inputState, fixedDelta);
+    this.vehicle.preStep(this.getDrivingInput(inputState), fixedDelta);
     this.world.step();
     this.vehicle.postStep(fixedDelta);
 
@@ -328,6 +340,9 @@ export class VibeTrackGame {
           this.lastCheckpointOrder = checkpointOrder;
           this.track.highlightCheckpoint(checkpointOrder);
           this.audio.playCheckpoint();
+          if (result.finished) {
+            this.audio.playFinish();
+          }
         }
       }
     }
@@ -355,6 +370,7 @@ export class VibeTrackGame {
       this.activeBoostIds = new Set<string>();
       this.autoRightCountdownMs = 0;
       this.vehicle.respawn(this.track.getSpawnPose());
+      this.triggerActionFreeze();
       return;
     }
 
@@ -365,7 +381,26 @@ export class VibeTrackGame {
       this.activeCheckpointOrders = new Set<number>();
       this.activeBoostIds = new Set<string>();
       this.autoRightCountdownMs = 0;
+      this.triggerActionFreeze();
     }
+  }
+
+  private triggerActionFreeze(): void {
+    this.freezeRemainingMs = ACTION_FREEZE_MS;
+  }
+
+  private getDrivingInput(inputState: InputState): InputState {
+    if (this.raceSession.getPhase() === "running") {
+      return inputState;
+    }
+
+    this.simulationInputState.throttle = 0;
+    this.simulationInputState.brake = 0;
+    this.simulationInputState.steer = 0;
+    this.simulationInputState.handbrake = false;
+    this.simulationInputState.respawn = false;
+    this.simulationInputState.restart = false;
+    return this.simulationInputState;
   }
 
   private persistBestLapIfNeeded(raceState: RaceState): void {

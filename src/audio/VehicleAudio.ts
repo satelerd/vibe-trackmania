@@ -135,6 +135,32 @@ export class VehicleAudio {
     osc.stop(now + 0.18);
   }
 
+  playFinish(): void {
+    if (!this.audioContext || !this.masterGain) {
+      return;
+    }
+
+    const osc = this.audioContext.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.value = 420;
+
+    const gain = this.audioContext.createGain();
+    gain.gain.value = 0.0001;
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    const now = this.audioContext.currentTime;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.14, now + 0.035);
+    osc.frequency.exponentialRampToValueAtTime(720, now + 0.18);
+    osc.frequency.exponentialRampToValueAtTime(560, now + 0.32);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+
+    osc.start(now);
+    osc.stop(now + 0.38);
+  }
+
   private buildNoiseBuffer(context: AudioContext, durationSeconds: number): AudioBuffer {
     const sampleRate = context.sampleRate;
     const frameCount = Math.floor(sampleRate * durationSeconds);
