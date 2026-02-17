@@ -1,6 +1,11 @@
 import RAPIER from "@dimforge/rapier3d-compat";
 import * as THREE from "three";
 import { InputState, RespawnPose, VehicleTelemetry, VehicleTuning } from "../types";
+import {
+  computeSlipAngleDeg,
+  computeSteerRate,
+  computeYawStabilityTorque
+} from "./handlingModel";
 
 type RapierWorld = import("@dimforge/rapier3d-compat").World;
 type RapierRigidBody = import("@dimforge/rapier3d-compat").RigidBody;
@@ -29,11 +34,15 @@ export class VehicleController {
   private steeringAngle = 0;
   private speedMs = 0;
   private grounded = false;
+  private slipAngleDeg = 0;
+  private yawRate = 0;
+  private yawAssistTorque = 0;
 
   private readonly forwardVector = new THREE.Vector3(0, 0, 1);
   private readonly upVector = new THREE.Vector3(0, 1, 0);
   private readonly workingQuaternion = new THREE.Quaternion();
   private readonly workingUpVector = new THREE.Vector3();
+  private readonly workingForwardVector = new THREE.Vector3();
   private readonly workingVector2 = new THREE.Vector2();
 
   constructor(
@@ -98,9 +107,10 @@ export class VehicleController {
   }
 
   preStep(input: InputState, deltaSeconds: number): void {
-    const steerSpeedFactor = THREE.MathUtils.clamp(1 - Math.abs(this.speedMs) / 90, 0.35, 1);
+    const speedKmh = Math.abs(this.speedMs) * 3.6;
+    const steerRate = computeSteerRate(speedKmh, this.tuning);
     const steeringInput = -input.steer;
-    this.steeringAngle = steeringInput * this.tuning.steerRate * steerSpeedFactor;
+    this.steeringAngle = steeringInput * steerRate;
 
     const canUseReverseEngine =
       input.brake > 0 &&
@@ -123,20 +133,70 @@ export class VehicleController {
       brakeRamp
     );
 
-    const rearGrip = input.handbrake ? this.tuning.driftGripFactorRear : 1;
+    const gripSpeedFactor = THREE.MathUtils.clamp(
+      speedKmh / Math.max(1, this.tuning.maxSpeedKmh),
+      0,
+      1
+    );
+    const frontGrip = 1 + gripSpeedFactor * 0.15;
+    const rearStabilityGrip = THREE.MathUtils.lerp(1, 0.88, gripSpeedFactor);
+    const rearGrip = input.handbrake
+      ? this.tuning.driftGripFactorRear
+      : rearStabilityGrip;
 
-    this.configureWheelControl(0, this.steeringAngle, throttleForce, this.appliedBrakeForce, 1);
-    this.configureWheelControl(1, this.steeringAngle, throttleForce, this.appliedBrakeForce, 1);
+    this.configureWheelControl(
+      0,
+      this.steeringAngle,
+      throttleForce,
+      this.appliedBrakeForce,
+      frontGrip
+    );
+    this.configureWheelControl(
+      1,
+      this.steeringAngle,
+      throttleForce,
+      this.appliedBrakeForce,
+      frontGrip
+    );
     this.configureWheelControl(2, 0, throttleForce, this.appliedBrakeForce, rearGrip);
     this.configureWheelControl(3, 0, throttleForce, this.appliedBrakeForce, rearGrip);
 
     this.applyBoostImpulse(deltaSeconds);
 
+    const bodyVelocity = this.body.linvel();
+    this.getForwardVector(this.workingForwardVector);
+    this.slipAngleDeg = computeSlipAngleDeg(
+      { x: this.workingForwardVector.x, z: this.workingForwardVector.z },
+      { x: bodyVelocity.x, z: bodyVelocity.z }
+    );
+    this.yawRate = this.body.angvel().y;
+    this.yawAssistTorque = computeYawStabilityTorque(
+      this.yawRate,
+      this.slipAngleDeg,
+      this.tuning,
+      this.grounded
+    );
+
     if (!this.grounded) {
       this.body.applyTorqueImpulse(
         {
           x: 0,
-          y: steeringInput * this.tuning.airControlTorque * deltaSeconds,
+          y:
+            steeringInput *
+            this.tuning.airControlTorque *
+            this.tuning.airControlFactor *
+            deltaSeconds,
+          z: 0
+        },
+        true
+      );
+    }
+
+    if (this.grounded && Math.abs(this.yawAssistTorque) > 0.0001) {
+      this.body.applyTorqueImpulse(
+        {
+          x: 0,
+          y: this.yawAssistTorque * deltaSeconds,
           z: 0
         },
         true
@@ -146,7 +206,7 @@ export class VehicleController {
     this.body.applyTorqueImpulse(
       {
         x: -this.body.angvel().x * 0.03,
-        y: -this.body.angvel().y * 0.04,
+        y: -this.body.angvel().y * 0.025,
         z: -this.body.angvel().z * 0.03
       },
       true
@@ -222,6 +282,9 @@ export class VehicleController {
     this.boostRemainingMs = 0;
     this.boostForce = 0;
     this.appliedBrakeForce = 0;
+    this.slipAngleDeg = 0;
+    this.yawRate = 0;
+    this.yawAssistTorque = 0;
 
     this.syncVisuals(0);
   }
@@ -245,6 +308,18 @@ export class VehicleController {
 
   getSteeringAngle(): number {
     return this.steeringAngle;
+  }
+
+  getSlipAngleDeg(): number {
+    return this.slipAngleDeg;
+  }
+
+  getYawRate(): number {
+    return this.yawRate;
+  }
+
+  getYawAssistTorque(): number {
+    return this.yawAssistTorque;
   }
 
   isUpsideDown(): boolean {

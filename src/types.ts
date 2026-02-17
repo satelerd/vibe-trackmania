@@ -16,13 +16,20 @@ export interface VehicleTuning {
   maxSpeedKmh: number;
   engineForce: number;
   brakeForce: number;
-  steerRate: number;
+  steerRateLowSpeed: number;
+  steerRateHighSpeed: number;
+  steerBlendKmh: number;
   suspensionRest: number;
   suspensionSpring: number;
   suspensionDamper: number;
   tireGrip: number;
   driftGripFactorRear: number;
   airControlTorque: number;
+  airControlFactor: number;
+  yawStabilityGain: number;
+  yawStabilityMaxTorque: number;
+  slipAssistGain: number;
+  slipAssistMaxTorque: number;
 }
 
 export interface CheckpointDef {
@@ -88,4 +95,7 @@ export interface DebugSnapshot {
   inputSteer: number;
   steeringAngle: number;
   autoRightCountdownMs: number;
+  slipAngleDeg: number;
+  yawRate: number;
+  yawAssistTorque: number;
 }
