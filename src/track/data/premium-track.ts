@@ -8,13 +8,13 @@ interface DistanceMarker {
 
 const CHECKPOINT_MARKERS: DistanceMarker[] = [
   { id: "cp0", distance: 48 },
-  { id: "cp1", distance: 132 },
-  { id: "cp2", distance: 206 },
-  { id: "cp3", distance: 256 },
-  { id: "cp4", distance: 318 },
-  { id: "cp5", distance: 372 },
-  { id: "cp6", distance: 446 },
-  { id: "cp7", distance: 520 }
+  { id: "cp1", distance: 126 },
+  { id: "cp2", distance: 168 },
+  { id: "cp3", distance: 252 },
+  { id: "cp4", distance: 292 },
+  { id: "cp5", distance: 430 },
+  { id: "cp6", distance: 520 },
+  { id: "cp7", distance: 610 }
 ];
 
 const BOOST_MARKERS: Array<
@@ -23,9 +23,10 @@ const BOOST_MARKERS: Array<
     force: number;
   }
 > = [
-  { id: "boost-start", distance: 62, force: 110, durationMs: 760 },
-  { id: "boost-loop", distance: 238, force: 170, durationMs: 950 },
-  { id: "boost-home", distance: 468, force: 125, durationMs: 700 }
+  { id: "boost-start", distance: 62, force: 120, durationMs: 820 },
+  { id: "boost-jump-entry", distance: 164, force: 185, durationMs: 1000 },
+  { id: "boost-loop-entry", distance: 300, force: 260, durationMs: 1300 },
+  { id: "boost-home", distance: 544, force: 145, durationMs: 760 }
 ];
 
 function buildCheckpoints(builder: TrackBuilder): CheckpointDef[] {
@@ -38,7 +39,7 @@ function buildCheckpoints(builder: TrackBuilder): CheckpointDef[] {
       order,
       position: [
         sampled.position[0],
-        sampled.position[1] + (atLoopCrown ? 1.2 : 2.8),
+        sampled.position[1] + (atLoopCrown ? 2.2 : 2.8),
         sampled.position[2]
       ],
       size: atLoopCrown ? [18, 16, 18] : [16, 8, 12]
@@ -73,28 +74,38 @@ export function buildPremiumTrackDefinition(): TrackDefinition {
   builder.addYawArc(52, 50, { bankDeg: 14, colorHex: 0x2b5482, stepLength: 3.2 });
   builder.addStraight(36, { colorHex: 0x315f8f, stepLength: 5.5 });
   builder.addJump({
-    rampLength: 20,
-    rampPitchDeg: 10,
-    gapLength: 14,
-    landingPitchDeg: -8,
-    landingLength: 24,
+    rampLength: 24,
+    rampPitchDeg: 12,
+    gapLength: 8,
+    landingPitchDeg: -10,
+    landingLength: 28,
     colorHex: 0x3d6f96,
     stepLength: 3.2
   });
-  builder.addStraight(34, { colorHex: 0x406f9d, stepLength: 4.5 });
-  builder.addPitchArc(18, 360, {
+  builder.addStraight(46, { colorHex: 0x406f9d, stepLength: 4.5 });
+  builder.addPitchArc(20, 70, {
+    colorHex: 0x42659b,
+    railMode: "both",
+    steps: 16
+  });
+  builder.addPitchArc(14, 220, {
     colorHex: 0x3f5b91,
     railMode: "both",
-    steps: 36
+    steps: 24
+  });
+  builder.addPitchArc(18, 70, {
+    colorHex: 0x3a5689,
+    railMode: "both",
+    steps: 16
   });
   builder.addStraight(44, { colorHex: 0x315b90, stepLength: 5 });
   builder.addYawArc(60, -95, { bankDeg: -6, colorHex: 0x2a5f89, stepLength: 3.8 });
   builder.addJump({
-    rampLength: 12,
-    rampPitchDeg: 7,
-    gapLength: 9,
-    landingPitchDeg: -6,
-    landingLength: 16,
+    rampLength: 14,
+    rampPitchDeg: 8,
+    gapLength: 6,
+    landingPitchDeg: -7,
+    landingLength: 18,
     colorHex: 0x2c4f7f,
     stepLength: 3
   });
