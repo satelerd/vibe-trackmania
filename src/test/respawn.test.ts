@@ -11,17 +11,24 @@ describe("respawn", () => {
     expect(pose.yaw).toBe(track.spawn.yaw);
   });
 
-  it("respawns above checkpoint and oriented to next checkpoint", () => {
+  it("respawns above jump-entry checkpoints and keeps forward orientation", () => {
     const track = loadPremiumTrack();
-    const pose = resolveRespawnPose(track, 1);
+    for (const order of [1, 6]) {
+      const checkpoint = track.checkpoints.find((candidate) => candidate.order === order);
+      const nextCheckpoint = track.checkpoints.find((candidate) => candidate.order === order + 1);
 
-    expect(pose.position[1]).toBeGreaterThan(track.checkpoints[1].position[1]);
+      expect(checkpoint).toBeDefined();
+      expect(nextCheckpoint).toBeDefined();
 
-    const expectedYaw = Math.atan2(
-      track.checkpoints[2].position[0] - track.checkpoints[1].position[0],
-      track.checkpoints[2].position[2] - track.checkpoints[1].position[2]
-    );
+      const pose = resolveRespawnPose(track, order);
+      expect(pose.position[1]).toBeGreaterThan((checkpoint?.position[1] ?? 0) + 0.5);
 
-    expect(pose.yaw).toBeCloseTo(expectedYaw, 5);
+      const expectedYaw = Math.atan2(
+        (nextCheckpoint?.position[0] ?? 0) - (checkpoint?.position[0] ?? 0),
+        (nextCheckpoint?.position[2] ?? 0) - (checkpoint?.position[2] ?? 0)
+      );
+
+      expect(pose.yaw).toBeCloseTo(expectedYaw, 5);
+    }
   });
 });

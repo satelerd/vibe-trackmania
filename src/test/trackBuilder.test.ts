@@ -28,8 +28,10 @@ describe("track builder", () => {
     expect(contiguous.length).toBeGreaterThan(20);
     expect(Math.max(...contiguous)).toBeLessThanOrEqual(0.45);
     expect(discontinuities).toHaveLength(2);
-    expect(discontinuities[0]).toBeGreaterThan(8);
-    expect(discontinuities[1]).toBeGreaterThan(6);
+    expect(discontinuities[0]).toBeGreaterThanOrEqual(10);
+    expect(discontinuities[0]).toBeLessThanOrEqual(16);
+    expect(discontinuities[1]).toBeGreaterThanOrEqual(7);
+    expect(discontinuities[1]).toBeLessThanOrEqual(11);
   });
 
   it("samples path distances with clamped bounds", () => {
