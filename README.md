@@ -39,7 +39,7 @@ Nota: con `Node v20.0.0` Vite muestra advertencia de versión recomendada (`20.1
 ## Controles
 
 - `W` / `ArrowUp` o gatillo derecho: acelerar
-- `S` / `ArrowDown` o gatillo izquierdo: frenar
+- `S` / `ArrowDown` o gatillo izquierdo: frenar / retroceder (marcha atrás cuando ya vas lento)
 - `A` / `D` o stick izquierdo: girar
 - `Space` o botón `B`: handbrake / drift assist
 - `R` o botón `A`: respawn al último checkpoint

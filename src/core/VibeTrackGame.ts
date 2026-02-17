@@ -33,7 +33,7 @@ const DEFAULT_TUNING: VehicleTuning = {
   massKg: 1200,
   maxSpeedKmh: 315,
   engineForce: 4200,
-  brakeForce: 240,
+  brakeForce: 95,
   steerRate: 0.53,
   suspensionRest: 0.35,
   suspensionSpring: 42,

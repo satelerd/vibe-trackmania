@@ -56,7 +56,7 @@ export class Hud {
     const controls = document.createElement("div");
     controls.className = "hud-controls";
     controls.textContent =
-      "WASD/Arrows: drive | Space/B: handbrake | R/A: respawn | Backspace/Start: restart";
+      "W/Up: throttle | S/Down: brake-reverse | A/D or Left/Right: steer | Space/B: handbrake | R/A: respawn | Backspace/Start: restart";
 
     this.root.append(topPanel, bottomPanel, controls);
     document.body.append(this.root);
