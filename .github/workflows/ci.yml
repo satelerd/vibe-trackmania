@@ -53,3 +53,6 @@ jobs:
           pnpm test:e2e
           END_TS=$(date +%s)
           echo "E2E duration: $((END_TS - START_TS))s"
+
+      - name: Trace Replay
+        run: pnpm test:trace -- --profile=e2e/trace-profiles/ci-smoke.profile.json
