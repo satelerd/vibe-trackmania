@@ -29,6 +29,10 @@ const ACTION_FREEZE_MS = 30;
 declare global {
   interface Window {
     __VIBETRACK_DEBUG__?: DebugSnapshot;
+    __VIBETRACK_TEST_API__?: {
+      respawnAtCheckpoint: (order: number, initialSpeedKmh?: number) => void;
+      respawnAtSpawn: () => void;
+    };
   }
 }
 
@@ -264,6 +268,7 @@ export class VibeTrackGame {
 
     this.resizeHandler();
     window.addEventListener("resize", this.resizeHandler);
+    this.exposeTestApi();
   }
 
   start(): void {
@@ -285,6 +290,7 @@ export class VibeTrackGame {
     this.input.dispose();
     window.removeEventListener("resize", this.resizeHandler);
     delete window.__VIBETRACK_DEBUG__;
+    delete window.__VIBETRACK_TEST_API__;
   }
 
   private readonly frame = (): void => {
@@ -488,6 +494,30 @@ export class VibeTrackGame {
       slipAngleDeg: this.vehicle.getSlipAngleDeg(),
       yawRate: this.vehicle.getYawRate(),
       yawAssistTorque: this.vehicle.getYawAssistTorque()
+    };
+  }
+
+  private exposeTestApi(): void {
+    window.__VIBETRACK_TEST_API__ = {
+      respawnAtCheckpoint: (order: number, initialSpeedKmh?: number) => {
+        const maxOrder = this.track.definition.checkpoints.length - 1;
+        const clampedOrder = Math.max(-1, Math.min(maxOrder, Math.floor(order)));
+        this.lastCheckpointOrder = clampedOrder;
+        this.activeCheckpointOrders = new Set<number>();
+        this.activeBoostIds = new Set<string>();
+        this.autoRightCountdownMs = 0;
+        this.vehicle.respawn(resolveRespawnPose(this.track.definition, clampedOrder));
+        if (typeof initialSpeedKmh === "number" && initialSpeedKmh > 0) {
+          this.vehicle.setForwardSpeedKmh(initialSpeedKmh);
+        }
+      },
+      respawnAtSpawn: () => {
+        this.lastCheckpointOrder = -1;
+        this.activeCheckpointOrders = new Set<number>();
+        this.activeBoostIds = new Set<string>();
+        this.autoRightCountdownMs = 0;
+        this.vehicle.respawn(this.track.getSpawnPose());
+      }
     };
   }
 }
