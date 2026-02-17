@@ -502,6 +502,14 @@ export class VibeTrackGame {
       respawnAtCheckpoint: (order: number, initialSpeedKmh?: number) => {
         const maxOrder = this.track.definition.checkpoints.length - 1;
         const clampedOrder = Math.max(-1, Math.min(maxOrder, Math.floor(order)));
+        this.raceSession.restartRun();
+        this.raceSession.update(16, true);
+        this.raceSession.update(3200, false);
+
+        for (let checkpointOrder = 0; checkpointOrder <= clampedOrder; checkpointOrder += 1) {
+          this.raceSession.registerCheckpoint(checkpointOrder);
+        }
+
         this.lastCheckpointOrder = clampedOrder;
         this.activeCheckpointOrders = new Set<number>();
         this.activeBoostIds = new Set<string>();
