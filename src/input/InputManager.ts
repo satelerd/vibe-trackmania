@@ -1,0 +1,139 @@
+import { InputState } from "../types";
+
+const DEAD_ZONE = 0.16;
+
+interface GamepadRead {
+  throttle: number;
+  brake: number;
+  steer: number;
+  handbrake: boolean;
+  respawn: boolean;
+  restart: boolean;
+}
+
+function withDeadZone(value: number): number {
+  if (Math.abs(value) < DEAD_ZONE) {
+    return 0;
+  }
+
+  return value;
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+export class InputManager {
+  private readonly keysDown = new Set<string>();
+  private prevRespawn = false;
+  private prevRestart = false;
+
+  private readonly keydownHandler = (event: KeyboardEvent): void => {
+    this.keysDown.add(event.code);
+  };
+
+  private readonly keyupHandler = (event: KeyboardEvent): void => {
+    this.keysDown.delete(event.code);
+  };
+
+  constructor(private readonly windowRef: Window = window) {
+    this.windowRef.addEventListener("keydown", this.keydownHandler);
+    this.windowRef.addEventListener("keyup", this.keyupHandler);
+  }
+
+  dispose(): void {
+    this.windowRef.removeEventListener("keydown", this.keydownHandler);
+    this.windowRef.removeEventListener("keyup", this.keyupHandler);
+  }
+
+  update(): InputState {
+    const gamepad = this.readGamepad();
+
+    const keyboardThrottle = this.keysDown.has("KeyW") || this.keysDown.has("ArrowUp") ? 1 : 0;
+    const keyboardBrake = this.keysDown.has("KeyS") || this.keysDown.has("ArrowDown") ? 1 : 0;
+
+    const steerLeft = this.keysDown.has("KeyA") || this.keysDown.has("ArrowLeft");
+    const steerRight = this.keysDown.has("KeyD") || this.keysDown.has("ArrowRight");
+
+    let keyboardSteer = 0;
+    if (steerLeft) {
+      keyboardSteer -= 1;
+    }
+    if (steerRight) {
+      keyboardSteer += 1;
+    }
+
+    const throttle = Math.max(keyboardThrottle, gamepad.throttle);
+    const brake = Math.max(keyboardBrake, gamepad.brake);
+    const steer = Math.max(-1, Math.min(1, keyboardSteer + gamepad.steer));
+
+    const handbrake = this.keysDown.has("Space") || gamepad.handbrake;
+
+    const respawnHeld = this.keysDown.has("KeyR") || gamepad.respawn;
+    const restartHeld = this.keysDown.has("Backspace") || gamepad.restart;
+
+    const respawn = respawnHeld && !this.prevRespawn;
+    const restart = restartHeld && !this.prevRestart;
+
+    this.prevRespawn = respawnHeld;
+    this.prevRestart = restartHeld;
+
+    return {
+      throttle,
+      brake,
+      steer,
+      handbrake,
+      respawn,
+      restart
+    };
+  }
+
+  hasIntent(input: InputState): boolean {
+    return (
+      input.throttle > 0.01 ||
+      input.brake > 0.01 ||
+      Math.abs(input.steer) > 0.01 ||
+      input.handbrake ||
+      input.respawn ||
+      input.restart
+    );
+  }
+
+  private readGamepad(): GamepadRead {
+    if (typeof navigator === "undefined" || !navigator.getGamepads) {
+      return {
+        throttle: 0,
+        brake: 0,
+        steer: 0,
+        handbrake: false,
+        respawn: false,
+        restart: false
+      };
+    }
+
+    const [pad] = navigator.getGamepads();
+    if (!pad) {
+      return {
+        throttle: 0,
+        brake: 0,
+        steer: 0,
+        handbrake: false,
+        respawn: false,
+        restart: false
+      };
+    }
+
+    const triggerThrottle = clamp01(pad.buttons[7]?.value ?? 0);
+    const triggerBrake = clamp01(pad.buttons[6]?.value ?? 0);
+    const steer = withDeadZone(pad.axes[0] ?? 0);
+
+    return {
+      throttle: triggerThrottle,
+      brake: triggerBrake,
+      steer,
+      handbrake: Boolean(pad.buttons[1]?.pressed),
+      respawn: Boolean(pad.buttons[0]?.pressed),
+      restart: Boolean(pad.buttons[9]?.pressed)
+    };
+  }
+}
