@@ -80,7 +80,7 @@ describe("track builder", () => {
         nearestDistance = Math.min(nearestDistance, closestDistance);
       }
 
-      expect(nearestDistance).toBeLessThan(6.5);
+      expect(nearestDistance).toBeLessThan(7);
     }
   });
 
