@@ -9,6 +9,12 @@ Objetivo: cerrar el gap entre estado actual y "se siente Trackmania" con entrega
 - HUD: tiempo, velocidad, checkpoint, best lap/splits.
 - Audio base: motor/viento/boost/checkpoint.
 - QA automatizada: unit + integration + Playwright e2e.
+- Stunt track reconstruida con layout conectado (saltos + loop) y checkpoints calibrados para respawn util.
+- Test API runtime para QA de secciones (`respawnAtCheckpoint`, `respawnAtSpawn`).
+- Input Trace Lab activo:
+  - grabacion y replay deterministico a 120 Hz
+  - shortcuts runtime (`F8` grabar/parar, `F9` descargar)
+  - smoke profile de replay para CI (`pnpm test:trace`)
 
 ## Brechas prioritarias
 
