@@ -48,8 +48,8 @@ test("A key steers vehicle left", async ({ page }) => {
   await page.keyboard.up("w");
 
   expect(duringTurn.inputSteer).toBeLessThan(-0.7);
-  expect(duringTurn.steeringAngle).toBeLessThan(-0.05);
-  expect(afterTurn.position[0]).toBeLessThan(beforeTurn.position[0] - 0.02);
+  expect(duringTurn.steeringAngle).toBeGreaterThan(0.05);
+  expect(afterTurn.position[0]).toBeGreaterThan(beforeTurn.position[0] + 0.02);
 });
 
 test("D key steers vehicle right", async ({ page }) => {
@@ -68,8 +68,8 @@ test("D key steers vehicle right", async ({ page }) => {
   await page.keyboard.up("w");
 
   expect(duringTurn.inputSteer).toBeGreaterThan(0.7);
-  expect(duringTurn.steeringAngle).toBeGreaterThan(0.05);
-  expect(afterTurn.position[0]).toBeGreaterThan(beforeTurn.position[0] + 0.02);
+  expect(duringTurn.steeringAngle).toBeLessThan(-0.05);
+  expect(afterTurn.position[0]).toBeLessThan(beforeTurn.position[0] - 0.02);
 });
 
 test("respawn resets position and speed after movement", async ({ page }) => {

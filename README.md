@@ -64,3 +64,5 @@ Nota: con `Node v20.0.0` Vite muestra advertencia de versión recomendada (`20.1
 - Ramas obligatorias con prefijo `codex/`
 - PR diaria con checklist de self-review
 - Merge squash cuando CI está en verde
+
+Plan de desarrollo activo: `docs/development-plan.md`

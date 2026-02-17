@@ -99,7 +99,8 @@ export class VehicleController {
 
   preStep(input: InputState, deltaSeconds: number): void {
     const steerSpeedFactor = THREE.MathUtils.clamp(1 - Math.abs(this.speedMs) / 90, 0.35, 1);
-    this.steeringAngle = input.steer * this.tuning.steerRate * steerSpeedFactor;
+    const steeringInput = -input.steer;
+    this.steeringAngle = steeringInput * this.tuning.steerRate * steerSpeedFactor;
 
     const canUseReverseEngine =
       input.brake > 0 &&
@@ -135,7 +136,7 @@ export class VehicleController {
       this.body.applyTorqueImpulse(
         {
           x: 0,
-          y: input.steer * this.tuning.airControlTorque * deltaSeconds,
+          y: steeringInput * this.tuning.airControlTorque * deltaSeconds,
           z: 0
         },
         true
