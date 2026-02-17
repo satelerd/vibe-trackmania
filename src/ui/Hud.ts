@@ -5,6 +5,11 @@ interface HudTelemetry {
   boostRemainingMs: number;
 }
 
+function formatDelta(ms: number): string {
+  const sign = ms >= 0 ? "+" : "-";
+  return `${sign}${(Math.abs(ms) / 1000).toFixed(3)}s`;
+}
+
 function formatLapTime(ms: number): string {
   const totalMilliseconds = Math.max(0, Math.floor(ms));
   const minutes = Math.floor(totalMilliseconds / 60000)
@@ -25,6 +30,7 @@ export class Hud {
   private readonly statusValue = document.createElement("div");
   private readonly bestValue = document.createElement("div");
   private readonly checkpointValue = document.createElement("div");
+  private readonly splitValue = document.createElement("div");
 
   constructor() {
     this.root.className = "hud-root";
@@ -43,8 +49,9 @@ export class Hud {
     this.statusValue.className = "hud-status";
     this.bestValue.className = "hud-best";
     this.checkpointValue.className = "hud-checkpoint";
+    this.splitValue.className = "hud-split";
 
-    bottomPanel.append(this.statusValue, this.bestValue, this.checkpointValue);
+    bottomPanel.append(this.statusValue, this.bestValue, this.checkpointValue, this.splitValue);
 
     const controls = document.createElement("div");
     controls.className = "hud-controls";
@@ -55,7 +62,12 @@ export class Hud {
     document.body.append(this.root);
   }
 
-  update(state: RaceState, telemetry: HudTelemetry, countdownMs: number): void {
+  update(
+    state: RaceState,
+    telemetry: HudTelemetry,
+    countdownMs: number,
+    autoRightCountdownMs: number
+  ): void {
     this.speedValue.textContent = `${Math.round(telemetry.speedKmh)} km/h`;
 
     if (state.phase === "idle") {
@@ -68,7 +80,11 @@ export class Hud {
       this.timerValue.textContent = formatLapTime(state.elapsedMs);
       const boostText =
         telemetry.boostRemainingMs > 0 ? ` | BOOST ${(telemetry.boostRemainingMs / 1000).toFixed(2)}s` : "";
-      this.statusValue.textContent = `Racing${boostText}`;
+      const autoRightText =
+        autoRightCountdownMs > 0
+          ? ` | AUTO-RIGHT ${(autoRightCountdownMs / 1000).toFixed(2)}s`
+          : "";
+      this.statusValue.textContent = `Racing${boostText}${autoRightText}`;
     } else {
       this.timerValue.textContent = formatLapTime(state.elapsedMs);
       this.statusValue.textContent = "Finish! Hit restart for another run";
@@ -81,5 +97,17 @@ export class Hud {
     }
 
     this.checkpointValue.textContent = `Checkpoint: ${state.currentCheckpointOrder}`;
+
+    if (state.lastSplitMs === null) {
+      this.splitValue.textContent = "Split: --";
+      return;
+    }
+
+    if (state.lastSplitDeltaMs === null) {
+      this.splitValue.textContent = "Split: baseline";
+      return;
+    }
+
+    this.splitValue.textContent = `Split Δ: ${formatDelta(state.lastSplitDeltaMs)}`;
   }
 }

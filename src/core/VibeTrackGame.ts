@@ -20,6 +20,8 @@ import {
 
 const FIXED_STEP_SECONDS = 1 / 120;
 const BEST_LAP_STORAGE_KEY = "vibetrack.bestLapMs";
+const BEST_SPLITS_STORAGE_KEY = "vibetrack.bestSplitsMs";
+const AUTO_RIGHT_TRIGGER_MS = 1200;
 
 declare global {
   interface Window {
@@ -41,6 +43,27 @@ const DEFAULT_TUNING: VehicleTuning = {
   airControlTorque: 13
 };
 
+function parseBestSplits(rawValue: string | null): number[] | null {
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue);
+    if (!Array.isArray(parsed)) {
+      return null;
+    }
+
+    const splits = parsed
+      .filter((value): value is number => typeof value === "number" && Number.isFinite(value))
+      .map((value) => Math.max(0, value));
+
+    return splits.length > 0 ? splits : null;
+  } catch {
+    return null;
+  }
+}
+
 export class VibeTrackGame {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene: THREE.Scene;
@@ -61,12 +84,21 @@ export class VibeTrackGame {
 
   private readonly workingPosition = new THREE.Vector3();
   private readonly workingForward = new THREE.Vector3();
+  private readonly currentInputState: InputState = {
+    throttle: 0,
+    brake: 0,
+    steer: 0,
+    handbrake: false,
+    respawn: false,
+    restart: false
+  };
 
   private activeCheckpointOrders = new Set<number>();
   private activeBoostIds = new Set<string>();
 
   private lastCheckpointOrder = -1;
   private lastPhase: RaceState["phase"] = "idle";
+  private autoRightCountdownMs = 0;
 
   private running = false;
   private rafId: number | null = null;
@@ -131,8 +163,14 @@ export class VibeTrackGame {
     const savedBestMsRaw = window.localStorage.getItem(BEST_LAP_STORAGE_KEY);
     const savedBestMs = Number(savedBestMsRaw);
     const initialBestMs = Number.isFinite(savedBestMs) ? savedBestMs : null;
+    const savedBestSplitsRaw = window.localStorage.getItem(BEST_SPLITS_STORAGE_KEY);
+    const initialBestSplits = parseBestSplits(savedBestSplitsRaw);
 
-    const raceSession = new RaceSession(trackDefinition.checkpoints.length, initialBestMs);
+    const raceSession = new RaceSession(
+      trackDefinition.checkpoints.length,
+      initialBestMs,
+      initialBestSplits
+    );
 
     const input = new InputManager(window);
     const hud = new Hud();
@@ -212,6 +250,7 @@ export class VibeTrackGame {
 
     const deltaSeconds = Math.min(0.05, this.clock.getDelta());
     const inputState = this.input.update();
+    Object.assign(this.currentInputState, inputState);
 
     this.handleOneShotActions(inputState);
 
@@ -243,7 +282,12 @@ export class VibeTrackGame {
       telemetry.boostRemainingMs > 0
     );
 
-    this.hud.update(raceState, telemetry, this.raceSession.getCountdownRemainingMs());
+    this.hud.update(
+      raceState,
+      telemetry,
+      this.raceSession.getCountdownRemainingMs(),
+      this.autoRightCountdownMs
+    );
     this.publishDebugState(raceState, telemetry);
 
     this.renderer.render(this.scene, this.camera);
@@ -260,6 +304,7 @@ export class VibeTrackGame {
     this.world.step();
     this.vehicle.postStep(fixedDelta);
 
+    this.updateAutoRight(fixedDelta);
     this.processTrackTriggers();
   }
 
@@ -301,6 +346,7 @@ export class VibeTrackGame {
       this.lastCheckpointOrder = -1;
       this.activeCheckpointOrders = new Set<number>();
       this.activeBoostIds = new Set<string>();
+      this.autoRightCountdownMs = 0;
       this.vehicle.respawn(this.track.getSpawnPose());
       return;
     }
@@ -311,15 +357,44 @@ export class VibeTrackGame {
       );
       this.activeCheckpointOrders = new Set<number>();
       this.activeBoostIds = new Set<string>();
+      this.autoRightCountdownMs = 0;
     }
   }
 
   private persistBestLapIfNeeded(raceState: RaceState): void {
     if (raceState.phase === "finished" && this.lastPhase !== "finished" && raceState.bestMs !== null) {
       window.localStorage.setItem(BEST_LAP_STORAGE_KEY, Math.round(raceState.bestMs).toString());
+
+      const bestSplits = this.raceSession.getBestSplits();
+      if (bestSplits) {
+        window.localStorage.setItem(BEST_SPLITS_STORAGE_KEY, JSON.stringify(bestSplits));
+      }
     }
 
     this.lastPhase = raceState.phase;
+  }
+
+  private updateAutoRight(deltaSeconds: number): void {
+    const telemetry = this.vehicle.getTelemetry();
+    const shouldTrackAutoRight =
+      this.vehicle.isUpsideDown() && !telemetry.isGrounded && telemetry.speedKmh < 45;
+
+    if (!shouldTrackAutoRight) {
+      this.autoRightCountdownMs = 0;
+      return;
+    }
+
+    this.autoRightCountdownMs += deltaSeconds * 1000;
+    if (this.autoRightCountdownMs < AUTO_RIGHT_TRIGGER_MS) {
+      return;
+    }
+
+    this.autoRightCountdownMs = 0;
+    this.activeCheckpointOrders = new Set<number>();
+    this.activeBoostIds = new Set<string>();
+    this.vehicle.respawn(
+      resolveRespawnPose(this.track.definition, this.lastCheckpointOrder)
+    );
   }
 
   private publishDebugState(raceState: RaceState, telemetry: VehicleTelemetry): void {
@@ -333,7 +408,10 @@ export class VibeTrackGame {
       ],
       forward: [this.workingForward.x, this.workingForward.y, this.workingForward.z],
       checkpointOrder: raceState.currentCheckpointOrder,
-      boostRemainingMs: telemetry.boostRemainingMs
+      boostRemainingMs: telemetry.boostRemainingMs,
+      inputSteer: this.currentInputState.steer,
+      steeringAngle: this.vehicle.getSteeringAngle(),
+      autoRightCountdownMs: this.autoRightCountdownMs
     };
   }
 }

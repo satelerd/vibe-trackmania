@@ -30,7 +30,9 @@ export class VehicleController {
   private grounded = false;
 
   private readonly forwardVector = new THREE.Vector3(0, 0, 1);
+  private readonly upVector = new THREE.Vector3(0, 1, 0);
   private readonly workingQuaternion = new THREE.Quaternion();
+  private readonly workingUpVector = new THREE.Vector3();
   private readonly workingVector2 = new THREE.Vector2();
 
   constructor(
@@ -214,6 +216,20 @@ export class VehicleController {
     const rotation = this.body.rotation();
     this.workingQuaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
     return target.copy(this.forwardVector).applyQuaternion(this.workingQuaternion).normalize();
+  }
+
+  getUpVector(target: THREE.Vector3): THREE.Vector3 {
+    const rotation = this.body.rotation();
+    this.workingQuaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+    return target.copy(this.upVector).applyQuaternion(this.workingQuaternion).normalize();
+  }
+
+  getSteeringAngle(): number {
+    return this.steeringAngle;
+  }
+
+  isUpsideDown(): boolean {
+    return this.getUpVector(this.workingUpVector).y < 0.15;
   }
 
   getTelemetry(): VehicleTelemetry {

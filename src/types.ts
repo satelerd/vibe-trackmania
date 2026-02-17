@@ -63,6 +63,8 @@ export interface RaceState {
   bestMs: number | null;
   currentCheckpointOrder: number;
   speedKmh: number;
+  lastSplitMs: number | null;
+  lastSplitDeltaMs: number | null;
 }
 
 export interface RespawnPose {
@@ -83,4 +85,7 @@ export interface DebugSnapshot {
   forward: Vec3;
   checkpointOrder: number;
   boostRemainingMs: number;
+  inputSteer: number;
+  steeringAngle: number;
+  autoRightCountdownMs: number;
 }

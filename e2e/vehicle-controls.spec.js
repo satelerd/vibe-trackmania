@@ -8,10 +8,6 @@ async function readDebug(page) {
   return data;
 }
 
-function yawFromForward(forward) {
-  return Math.atan2(forward[0], forward[2]);
-}
-
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await expect
@@ -38,21 +34,42 @@ test("car accelerates when throttle is pressed", async ({ page }) => {
 
 test("A key steers vehicle left", async ({ page }) => {
   await page.keyboard.down("w");
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(900);
 
   const beforeTurn = await readDebug(page);
-  const beforeYaw = yawFromForward(beforeTurn.forward);
 
   await page.keyboard.down("a");
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(650);
+  const duringTurn = await readDebug(page);
   await page.keyboard.up("a");
 
   const afterTurn = await readDebug(page);
-  const afterYaw = yawFromForward(afterTurn.forward);
 
   await page.keyboard.up("w");
 
-  expect(afterYaw).toBeLessThan(beforeYaw - 0.05);
+  expect(duringTurn.inputSteer).toBeLessThan(-0.7);
+  expect(duringTurn.steeringAngle).toBeLessThan(-0.05);
+  expect(afterTurn.position[0]).toBeLessThan(beforeTurn.position[0] - 0.2);
+});
+
+test("D key steers vehicle right", async ({ page }) => {
+  await page.keyboard.down("w");
+  await page.waitForTimeout(900);
+
+  const beforeTurn = await readDebug(page);
+
+  await page.keyboard.down("d");
+  await page.waitForTimeout(650);
+  const duringTurn = await readDebug(page);
+  await page.keyboard.up("d");
+
+  const afterTurn = await readDebug(page);
+
+  await page.keyboard.up("w");
+
+  expect(duringTurn.inputSteer).toBeGreaterThan(0.7);
+  expect(duringTurn.steeringAngle).toBeGreaterThan(0.05);
+  expect(afterTurn.position[0]).toBeGreaterThan(beforeTurn.position[0] + 0.2);
 });
 
 test("respawn resets position and speed after movement", async ({ page }) => {

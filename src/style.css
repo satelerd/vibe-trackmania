@@ -61,7 +61,8 @@ canvas {
 .hud-speed,
 .hud-status,
 .hud-best,
-.hud-checkpoint {
+.hud-checkpoint,
+.hud-split {
   backdrop-filter: blur(10px);
   background: var(--hud-bg);
   border: 1px solid rgba(111, 215, 255, 0.22);
@@ -91,6 +92,10 @@ canvas {
 
 .hud-checkpoint {
   color: var(--hud-accent);
+}
+
+.hud-split {
+  color: #ffd37a;
 }
 
 .hud-controls {

@@ -38,4 +38,18 @@ describe("race session", () => {
     expect(end.valid).toBe(true);
     expect(end.finished).toBe(true);
   });
+
+  it("tracks split delta against previous best run", () => {
+    const session = new RaceSession(2, 15_000, [5_000, 12_000]);
+
+    session.update(1, true);
+    session.update(3000, false);
+
+    session.update(2_200, false);
+    session.registerCheckpoint(0);
+
+    const splitState = session.getState(0);
+    expect(splitState.lastSplitMs).toBeGreaterThan(5_000);
+    expect(splitState.lastSplitDeltaMs).toBeGreaterThan(0);
+  });
 });
