@@ -26,12 +26,23 @@ async function waitGameReady(page, path = "/") {
 }
 
 async function holdUntilRunning(page) {
-  await page.keyboard.down("w");
-  await expect
-    .poll(async () => (await readDebug(page)).phase, {
-      timeout: 12_000
-    })
-    .toBe("running");
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await page.keyboard.down("w");
+    try {
+      await expect
+        .poll(async () => (await readDebug(page)).phase, {
+          timeout: 12_000
+        })
+        .toBe("running");
+      return;
+    } catch (error) {
+      await page.keyboard.up("w");
+      if (attempt === 1) {
+        throw error;
+      }
+      await page.waitForTimeout(120);
+    }
+  }
 }
 
 async function collectTelemetryWindow(page, durationMs, intervalMs = 120) {
